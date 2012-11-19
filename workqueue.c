@@ -28,7 +28,7 @@ int workqueue(void (*fn)(void *priv, struct barrier *), void *priv,
 #define SCHED_WORKQUEUES (4)
 
 	/* Default workqueue threads, if NUMPROC is unset */
-static const int sched_defthreads = 2; 
+static const int sched_defthreads = 2;
 	/* Default ticks before we pull workitems from a remote workqueue */
 static const int sched_sticks_rr = 4; 
 	/* Workitems to pull from a remote workqueue */
@@ -37,9 +37,9 @@ static const int sched_workqueues = SCHED_WORKQUEUES;
 static const int sched_hz = 100; /* mS */
 static const int sched_max_proc = SCHED_WORKQUEUES;
 	/* If workqueue has over this amount of work, do work in workqueue() */
-static const int sched_overload_threshold = 4;	
+static const int sched_overload_threshold = 4;
 	/* Max items to process in process_workqueue_item */
-static const int sched_overload = 0;
+static const int sched_overload = 2;
 
 struct workqueue_item {
 	void				(*wi_cb)(void *, struct barrier *);

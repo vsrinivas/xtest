@@ -1,3 +1,4 @@
+CFLAGS+=-Wall -Wextra
 OBJS=fftw.o workqueue.o
 
 sftw: libw.a sftw.c $(OBJS)

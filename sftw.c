@@ -11,6 +11,8 @@
 #include <db.h>
 #include "workqueue.h"
 
+static int cache_hits;
+
 char *cmd = "s3cmd";
 
 struct item {
@@ -35,6 +37,29 @@ static void teardown_db() {
 	sysdb.hashmap->close(sysdb.hashmap);
 }
 
+static int match_db(char *url) {
+	DBT key, val;
+	int i;
+
+	key.data = url;
+	key.size = strlen(url) - 1; // makes up for \n
+	pthread_mutex_lock(&sysdb.db_mtx);
+	do {
+		i = sysdb.hashmap->get(sysdb.hashmap, &key, &val, 0);
+	} while(0);
+	pthread_mutex_unlock(&sysdb.db_mtx);
+
+	if (i == 0)
+		return (1);
+	return (0);
+}
+
+struct rmt_store_db_cb {
+	char *url;
+	unsigned long long size;
+	char *score;
+};
+
 static void store_db(char *url, unsigned long long size, char *score) {
 	DBT key, value;
 	key.data = url;
@@ -50,6 +75,23 @@ static void store_db(char *url, unsigned long long size, char *score) {
 	pthread_mutex_unlock(&sysdb.db_mtx);
 }
 
+static void rmt_store_db1(void *cbp) {
+	struct rmt_store_db_cb *cb = cbp;
+	store_db(cb->url, cb->size, cb->score);
+	free(cb->url);
+	free(cb->score);
+	free(cb);
+}
+
+static void rmt_store_db(char *url, unsigned long long size, char *score, struct barrier *bar) {
+	struct rmt_store_db_cb *cb;
+	cb = calloc(1, sizeof(*cb));
+	cb->url = url;
+	cb->size = size;
+	cb->score = score;
+	workqueue(rmt_store_db1, cb, bar);
+}
+
 void process_info(struct item *it, struct barrier *bar) {
 	int s;
 	char *xcmd;
@@ -62,8 +104,23 @@ void process_info(struct item *it, struct barrier *bar) {
 	unsigned long long size;
 	char *url;
 	char *score;
-	
-	url=score=NULL;
+	int match;	
+
+/* MATCH reuses stuff from the map */
+#ifdef DEBUG
+	printf("Trymatch %s\n", it->path);
+#endif
+	match = match_db(it->path);
+	if (match) {
+#ifdef DEBUG
+		printf("Already stored %s\n", it->path);
+#endif
+		free(it->path);
+		free(it);
+		return;
+	}
+
+	url = score = NULL;
 	s = strlen(cmd) + strlen(it->path) + 16;
 	xcmd = calloc(1, s);
 	snprintf(xcmd, s, "%s info %s", cmd, it->path);
@@ -104,11 +161,24 @@ void process_info(struct item *it, struct barrier *bar) {
 		}
 	}
 	/* Got a full record; in the future, abort/retry XXX */
-	assert(i == 6);
-	store_db(url, size, score);
+//	assert(i == 6);
+	if (i != 6) {
+		/* incomplete record!! */
+		++cache_hits;
+		printf("FILE FAILURE =============== %s\n", url);
+		goto out;
+	}
+//	store_db(url, size, score);
+	rmt_store_db(url, size, score, bar);
+
+#ifdef DEBUG
 	printf("%s %llu %s\n", url, size, score);
+#endif
+
+out:
 	free(url);
 	free(score);
+
 	pclose(fp);
 
 	free(it->path);
@@ -120,21 +190,27 @@ void process_one_item(struct item *it, struct barrier *bar) {
 	int s;
 	char *cmdbuf;
 	int di = 0, di2 = 0;
-	struct item *deferred[1024];
-	struct item *deferred2[4096];
+	/* Deferred directories */
+	struct item **deferred;
+	/* Deferred files */
+	struct item **deferred2;
+
+	deferred = calloc(1024, sizeof(struct item *));
+	deferred2 = calloc(4096, sizeof(struct item *));
 
 	s = strlen(cmd) + strlen(it->path) + 16;
 	cmdbuf = calloc(1, s);
 	snprintf(cmdbuf, s, "%s ls %s", cmd, it->path);
 
-//	printf("DO %s\n", cmdbuf);
+#ifdef DEBUG
+	printf("DO %s\n", cmdbuf);
+#endif
 	FILE *fp = popen(cmdbuf, "r");
 	char linebuf[512];
 	char *cp;
 	char *dx; // isdir
 	char *lpath;
 
-	bzero(&deferred[0], sizeof(deferred));
 	for (;;) {
 		bzero(linebuf, sizeof(linebuf));
 		cp = fgets(linebuf, sizeof(linebuf), fp);
@@ -164,7 +240,9 @@ void process_one_item(struct item *it, struct barrier *bar) {
 			deferred2[di2++] = nit;	
 		}
 cont:
-//		printf(">>%s", cp);
+#ifdef DEBUG
+		printf(">>%s", cp);
+#endif
 		;
 	}
 	pclose(fp);
@@ -176,6 +254,8 @@ cont:
 	for (i = 0; i < di2; i++)
 		workqueue(process_info, deferred2[i], bar);
 
+	free(deferred);
+	free(deferred2);
 	free(cmdbuf);
 	free(it->path);
 	free(it);
