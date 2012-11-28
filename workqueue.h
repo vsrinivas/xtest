@@ -12,7 +12,4 @@ void bwait(struct barrier *b);
 int workqueue(void (*fn)(void *priv, struct barrier *), void *priv,
 	      struct barrier *b); 
 
-extern int sched_forceproc;
-extern int sched_forceoverload;
-
 #endif

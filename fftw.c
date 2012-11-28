@@ -48,7 +48,7 @@ process_one_item(struct item *it, struct barrier *bar) {
 	strcat(namebuf, it->basepath);
 	strcat(namebuf, it->name);
 
-	printf("STAT: %s\n", namebuf);
+	//printf("STAT: %s\n", namebuf);
 	rv = stat(namebuf, &sb);
 	if (rv == -1) {
 		flags = FTW_NS;
@@ -84,7 +84,7 @@ processdir(const char *path,
 	struct dirent *de, *buf;
 	struct item *item;
 
-	printf("%s ========>\n", path);
+	//printf("%s ========>\n", path);
 
 	dir = opendir(path);
 	if (dir == NULL)
@@ -131,12 +131,10 @@ fftw(const char *path,
 
 #ifdef TEST
 int callx(const char *name, const struct stat *sb, int flag, void *priv) {
-	printf("%s\n", name);
+//	printf("%s\n", name);
 }
 
 main(int argc, char *argv[]) {
-	sched_forceproc = 1;
-	sched_forceoverload = 0;
 	fftw(argv[1], callx, NULL);
 }
 #endif
