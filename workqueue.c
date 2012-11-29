@@ -21,7 +21,12 @@ static const int sched_max_proc = SCHED_WORKQUEUES;
 /* Default ticks before we pull workitems from a remote workqueue */
 static const int sched_sticks_rr = 2;
 /* Workitems to pull from a remote workqueue */
-static const int sched_rr_pull = 2;
+static const int sched_rr_pull = 4;
+/* Threshold below which a workqueue uses linear pull */
+static const int sched_worst_threshold = 2;
+
+/* Threads queue work to themselves */
+static const int sched_fifo = 0;
 
 struct workqueue_item {
 	void				(*wi_cb)(void *, struct barrier *);
@@ -38,10 +43,12 @@ struct workqueue {
 	struct barrier			*wq_completion;
 
 	int				wq_processed;
+	int				wq_pulls;
 };
 
 static pthread_mutex_t sched_mtx;
 static pthread_cond_t sched_cv;
+static pthread_key_t thread_idx;
 static pthread_once_t workqueue_once = PTHREAD_ONCE_INIT;
 static struct workqueue workqueues[SCHED_WORKQUEUES];
 static int workqueue_rover = 0;
@@ -76,7 +83,7 @@ static void process_workqueue_item(struct workqueue_item *wi) {
 /*
  * Workqueue is locked on entry and unlocked around processing each item.
  */
-static void process_workqueue(struct workqueue *wq, int num) {
+static int process_workqueue(struct workqueue *wq, int num) {
 	struct workqueue_item *wi;
 	int i;
 
@@ -95,18 +102,51 @@ static void process_workqueue(struct workqueue *wq, int num) {
 		pthread_mutex_lock(&wq->wq_mtx);
 		wq->wq_processed++;
 	}
+
+	return (i);
+}
+
+static struct workqueue *selqueue(void) {
+	struct workqueue *wq;
+	static int rover = 0;
+
+	wq = NULL;
+
+	if (sched_fifo)
+		wq = pthread_getspecific(thread_idx);
+	if (wq == NULL)
+		wq = &workqueues[rover++ % workqueue_rover];
+
+	return (wq);
+}
+
+static struct workqueue *selworstqueue(int *rover, struct workqueue *wq) {
+	struct workqueue *rwq;
+	int i;
+	int worst_nitems;
+
+	worst_nitems = -1;
+	for (i = 0 ; i < workqueue_rover; i++) {
+		if (workqueues[i].wq_items > worst_nitems)
+			rwq = &workqueues[i];
+	}
+	if (worst_nitems < sched_worst_threshold || rwq == wq) {
+		*rover = (*rover + 1) % workqueue_rover;
+		rwq = &workqueues[*rover];
+	}
+	if (rwq == wq)
+		rwq = NULL;
+
+	return (rwq);
 }
 
 static int add_workqueue_item(struct workqueue_item *wi) {
-	static int rover = 0;
-	int selqueue;
 	struct workqueue *wq;
 
 	if (wi->wi_barrier)
 		binc(wi->wi_barrier);
 
-	selqueue = (rover++) % workqueue_rover;
-	wq = &workqueues[selqueue];
+	wq = selqueue();
 	pthread_mutex_lock(&wq->wq_mtx);
 
 	TAILQ_INSERT_TAIL(&wq->wq_entries, wi, wi_entries);
@@ -133,7 +173,7 @@ static void *workqueue_thread(void *p) {
 
 	TAILQ_INIT(&wq->wq_entries);
 	pthread_mutex_init(&wq->wq_mtx, NULL);
-	wq->wq_items = 0;
+	pthread_setspecific(thread_idx, wq);
 
 	pthread_cond_signal(&sched_cv);
 	pthread_mutex_unlock(&sched_mtx);
@@ -159,21 +199,20 @@ static void *workqueue_thread(void *p) {
 		pthread_mutex_unlock(&wq->wq_mtx);
 
 		/*
-		 * Once every sched_sticks_rr ticks, pull one workitem from
+		 * Once every sched_sticks_rr ticks, pull workitems from
 		 * a remote workqueue.
 		 */
 		 if ((workqueue_rover > 1) &&
 		     (sticks % sched_sticks_rr == 0)) {
-			rover = (rover + 1) % workqueue_rover;
-			if (rover == myidx)
+			rwq = selworstqueue(&rover, wq);
+			if (rwq == NULL)
 				continue;
-
-			rwq = &workqueues[rover];
 
 			i = pthread_mutex_trylock(&rwq->wq_mtx);
 			if (i != 0)
 				continue;
-			process_workqueue(rwq, sched_rr_pull);
+			i = process_workqueue(rwq, sched_rr_pull);
+			rwq->wq_pulls += i;
 			pthread_mutex_unlock(&rwq->wq_mtx);
 		}
 	}
@@ -202,7 +241,7 @@ static void workqueue_exit(void) {
 		free(completion);
 
 		pthread_mutex_lock(&wq->wq_mtx);
-		printf("%d %d\n", i, wq->wq_processed);
+		printf("%d %d (%d)\n", i, wq->wq_processed, wq->wq_pulls);
 		pthread_mutex_unlock(&wq->wq_mtx);
 	}
 }
@@ -229,11 +268,15 @@ static void workqueue_init(void) {
 
 	for (i = 0; i < SCHED_WORKQUEUES; i++) {
 		workqueues[i].wq_completion = NULL;
-		workqueues[i].wq_processed = 0;
+		workqueues[i].wq_items = 0;
 		TAILQ_INIT(&workqueues[i].wq_entries);
+
+		workqueues[i].wq_processed = 0;
+		workqueues[i].wq_pulls = 0;
 	}
 
 	pthread_mutex_lock(&sched_mtx);
+	pthread_key_create(&thread_idx, NULL);
 	for (i = 0; i < nproc; i++) {
 		pthread_create(&thr, NULL, &workqueue_thread, NULL);
 		pthread_detach(thr);
