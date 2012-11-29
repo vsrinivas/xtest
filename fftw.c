@@ -132,10 +132,10 @@ fftw(const char *path,
 #ifdef TEST
 
 int callx(const char *name, const struct stat *sb, int flag, void *priv) {
-	char buf[128];
+	char buf[256];
 	printf("%s ===>\n", name);
 	if (flag == FTW_F) {
-		snprintf(buf, 128, "md5sum \"%s\"", name);
+		snprintf(buf, 256, "md5sum \"%s\"", name);
 		system(buf);
 	}
 }
