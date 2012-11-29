@@ -1,9 +1,12 @@
 /* XXX(vsrinivas): Lock contention on binc/bdec/bwait are likely bad! */
 
-#include <pthread.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <sys/queue.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
+#include <unistd.h>
+#include <pthread.h>
 
 #include "workqueue.h"
 
@@ -12,16 +15,13 @@
 
 /* Default workqueue threads, if NUMPROC is unset */
 static const int sched_defthreads = 4;
+/* Maximum number of workers; currently equal to max workqueues */
+static const int sched_max_proc = SCHED_WORKQUEUES;
+
 /* Default ticks before we pull workitems from a remote workqueue */
 static const int sched_sticks_rr = 2;
 /* Workitems to pull from a remote workqueue */
 static const int sched_rr_pull = 2;
-static const int sched_workqueues = SCHED_WORKQUEUES;
-static const int sched_max_proc = SCHED_WORKQUEUES;
-/* If workqueue has over this amount of work, do work in workqueue() */
-static const int sched_overload_threshold = 4;
-/* Max items to process in process_workqueue_item */
-static const int sched_overload = 2;
 
 struct workqueue_item {
 	void				(*wi_cb)(void *, struct barrier *);
@@ -35,6 +35,9 @@ struct workqueue {
 	pthread_cond_t			wq_cv;
 	TAILQ_HEAD(, workqueue_item)	wq_entries;
 	int				wq_items;
+	struct barrier			*wq_completion;
+
+	int				wq_processed;
 };
 
 static pthread_mutex_t sched_mtx;
@@ -90,6 +93,7 @@ static void process_workqueue(struct workqueue *wq, int num) {
 		pthread_mutex_unlock(&wq->wq_mtx);
 		process_workqueue_item(wi);
 		pthread_mutex_lock(&wq->wq_mtx);
+		wq->wq_processed++;
 	}
 }
 
@@ -101,17 +105,12 @@ static int add_workqueue_item(struct workqueue_item *wi) {
 	if (wi->wi_barrier)
 		binc(wi->wi_barrier);
 
-	selqueue = (rover++) & (workqueue_rover - 1);
+	selqueue = (rover++) % workqueue_rover;
 	wq = &workqueues[selqueue];
 	pthread_mutex_lock(&wq->wq_mtx);
 
 	TAILQ_INSERT_TAIL(&wq->wq_entries, wi, wi_entries);
 	wq->wq_items++;
-
-
-	if (wq->wq_items > sched_overload_threshold) {
-		process_workqueue(wq, sched_overload);
-	}
 
 	pthread_cond_signal(&wq->wq_cv);
 	pthread_mutex_unlock(&wq->wq_mtx);
@@ -121,13 +120,14 @@ static int add_workqueue_item(struct workqueue_item *wi) {
 
 static void *workqueue_thread(void *p) {
 	struct workqueue *wq, *rwq;
+	struct barrier *completion;
 	int myidx;
 	int rover;
 	int sticks;
 	int i;
 
 	pthread_mutex_lock(&sched_mtx);
-	myidx = workqueue_rover++ % sched_workqueues;
+	myidx = workqueue_rover++ % SCHED_WORKQUEUES;
 	rover = myidx;
 	wq = &workqueues[myidx];
 
@@ -140,8 +140,15 @@ static void *workqueue_thread(void *p) {
 
 	for (sticks = 0;; sticks++) {
 		pthread_mutex_lock(&wq->wq_mtx);
-		if (wq->wq_items == 0)
-			pthread_cond_wait(&wq->wq_cv, &wq->wq_mtx);
+		if (wq->wq_items == 0) {
+			if (wq->wq_completion) {
+				completion = wq->wq_completion;
+				pthread_mutex_unlock(&wq->wq_mtx);
+				break;
+			} else {
+				pthread_cond_wait(&wq->wq_cv, &wq->wq_mtx);
+			}
+		}
 
 		/*
 		 * Process all items on our workqueue, in-order
@@ -169,10 +176,35 @@ static void *workqueue_thread(void *p) {
 			process_workqueue(rwq, sched_rr_pull);
 			pthread_mutex_unlock(&rwq->wq_mtx);
 		}
-
 	}
-	/*NOTREACHED*/
+
+	bdec(completion);
 	return (NULL);
+}
+
+static void workqueue_exit(void) {
+	struct workqueue *wq;
+	struct barrier *completion;
+	int i;
+
+	for (i = 0; i < workqueue_rover; i++) {
+		wq = &workqueues[i];
+
+		completion = calloc(1, sizeof(*completion));
+		binc(completion);
+
+		pthread_mutex_lock(&wq->wq_mtx);
+		wq->wq_completion = completion;
+		pthread_cond_signal(&wq->wq_cv);
+		pthread_mutex_unlock(&wq->wq_mtx);
+
+		bwait(completion);
+		free(completion);
+
+		pthread_mutex_lock(&wq->wq_mtx);
+		printf("%d %d\n", i, wq->wq_processed);
+		pthread_mutex_unlock(&wq->wq_mtx);
+	}
 }
 
 static void workqueue_init(void) {
@@ -196,19 +228,26 @@ static void workqueue_init(void) {
 	} while(0);
 
 	for (i = 0; i < SCHED_WORKQUEUES; i++) {
+		workqueues[i].wq_completion = NULL;
+		workqueues[i].wq_processed = 0;
 		TAILQ_INIT(&workqueues[i].wq_entries);
 	}
 
 	pthread_mutex_lock(&sched_mtx);
 	for (i = 0; i < nproc; i++) {
 		pthread_create(&thr, NULL, &workqueue_thread, NULL);
+		pthread_detach(thr);
 		pthread_cond_wait(&sched_cv, &sched_mtx);
 	}
 	pthread_mutex_unlock(&sched_mtx);
+
+	atexit(workqueue_exit);
 }
 
-int workqueue(void (*fn)(void *priv, struct barrier *b), void *priv,
-    struct barrier *b) {
+int
+workqueue(void (*fn)(void *priv, struct barrier *b), void *priv,
+	  struct barrier *b)
+{
 	struct workqueue_item *it;
 	int i;
 
@@ -224,3 +263,4 @@ int workqueue(void (*fn)(void *priv, struct barrier *b), void *priv,
 
 	return (i);
 }
+

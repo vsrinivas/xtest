@@ -64,7 +64,7 @@ process_one_item(struct item *it, struct barrier *bar) {
 	}
 
 issue:
-	it->fn(it->name, &sb, flags, it->priv);
+	it->fn(namebuf, &sb, flags, it->priv);
 
 out:
 	free(namebuf);
@@ -130,11 +130,20 @@ fftw(const char *path,
 }
 
 #ifdef TEST
+
 int callx(const char *name, const struct stat *sb, int flag, void *priv) {
-//	printf("%s\n", name);
+	char buf[128];
+	printf("%s ===>\n", name);
+	if (flag == FTW_F) {
+		snprintf(buf, 128, "md5sum \"%s\"", name);
+		system(buf);
+	}
 }
 
 main(int argc, char *argv[]) {
-	fftw(argv[1], callx, NULL);
+	struct barrier *b = calloc(1, sizeof(*b));
+	fftw(argv[1], callx, b);
+	bwait(b);
+	free(b);
 }
 #endif
