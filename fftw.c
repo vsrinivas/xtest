@@ -130,6 +130,7 @@ fftw(const char *path,
 }
 
 #ifdef TEST
+#include <signal.h>
 
 int callx(const char *name, const struct stat *sb, int flag, void *priv) {
 	char buf[256];
