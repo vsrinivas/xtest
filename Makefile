@@ -4,6 +4,8 @@ MD5=\
 THREADS=\
 	barrier.o \
 	pwq.o \
+
+OLD=\
 	fftw.o
 
 UTIL=\
@@ -18,7 +20,8 @@ CMDS=\
 ftwdb2: ftwdb2.o $(MD5)
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb
 
-transactor: transactor.o
+transactor: transactor.o $(MD5) $(THREADS)
+	$(CXX) $(LDFLAGS) -o $@ $^ -pthread
 
 # Parallel wordcount; RC 2018.
 pwc:	pwc.o
