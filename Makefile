@@ -17,8 +17,9 @@ CMDS=\
 	transactor \
 	pwc
 
+# CFLAGS=-static CXXFLAGS="-O -static" LDFLAGS="-static -pthread -lsnappy" make ftwdb2
 ftwdb2: ftwdb2.o $(MD5)
-	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb
+	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy
 
 transactor: transactor.o $(MD5) $(THREADS)
 	$(CXX) $(LDFLAGS) -o $@ $^ -pthread
