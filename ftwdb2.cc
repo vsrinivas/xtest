@@ -33,7 +33,7 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 			rc = -1;
 			break;
 		}
-		printf("==> %s, %s\n", path, md5);
+		printf("==> %s, %s\n", path, val);
 
 		leveldb::Slice value(val, 32 + 1);
 

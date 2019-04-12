@@ -4,7 +4,7 @@
 #include <limits.h>
 
 /* MD5 a file */
-char* md5sum(char* path) {
+char *md5sum(const char *path) {
 	FILE* fp;
 	char buf[FILENAME_MAX];
 	char md5sum[32 + 1];
