@@ -6,6 +6,8 @@
 
 class PWQ {
  public:
+  // Execute |fn| in a process-wide threadpool.
+  // |barrier| allows waiting for |fn| to be executed.
   static void Run(std::function<void()> fn, Barrier* barrier);
 };
 

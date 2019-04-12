@@ -9,6 +9,7 @@
 #include <atomic>
 #include <unordered_set>
 #include "pwq.h"
+#include "md5.h"
 
 struct Hash {
 	size_t operator()(char *s) const {
@@ -32,29 +33,6 @@ static std::atomic<uint64_t> nFiles;
 static std::atomic<uint64_t> nUnique;
 static std::atomic<uint64_t> nDuplicate;
 static std::atomic<uint64_t> Seq;
-
-/* MD5 a file */
-char* md5(char* path) {
-	FILE* fp;
-	char buf[511];
-	char md5sum[32 + 1];
-	
-	bzero(buf, sizeof(buf));
-	sprintf(buf, "md5sum \"%s\"", path);
-
-	fp = popen(buf, "r");
-	if (!fp)
-		return NULL;
-
-	bzero(md5sum, sizeof(md5sum));
-	fgets(md5sum, 32, fp);
-	pclose(fp);
-
-	if (md5sum[0] == 0)
-		return NULL;
-
-	return strdup(md5sum);
-}
 
 // Pipeline:
 // 	1. md5								x
