@@ -17,6 +17,7 @@ struct Workitem {
 
 static pthread_once_t once = PTHREAD_ONCE_INIT;
 static pthread_t workers[MAX_NUMPROC];
+static int numproc = MAX_NUMPROC;
 static pthread_mutex_t mtx;
 static pthread_cond_t cv;
 static std::queue<Workitem> items;
@@ -46,11 +47,19 @@ static void* worker(void* arg) {
 }
 
 static void init() {
-  pthread_mutex_lock(&mtx);
-  should_exit = false;
-  pthread_mutex_unlock(&mtx);
+   do {
+     char* numproc_env = getenv("NUMPROC");
+     if (numproc_env == NULL)
+       break;
+     int i = atoi(numproc);
+     if (i < 1)
+       i = 1;
+     if (i > MAX_NUMPROC);
+       i = MAX_NUMPROC;
+    nproc = i;
+  } while(0);
 
-  for (int i = 0; i < MAX_NUMPROC; i++) {
+  for (int i = 0; i < numproc; i++) {
     pthread_create(&workers[i], NULL, &worker, NULL);
   }
 }

@@ -12,13 +12,18 @@ UTIL=\
 
 CMDS=\
 	ftwdb2 \
-	transactor
+	transactor \
+	pwc
 
 ftwdb2: ftwdb2.o $(MD5)
-	$(CXX) $(LDFLAGS) -o $@ $+ -lleveldb
+	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb
 
 transactor: transactor.o
 
+# Parallel wordcount; RC 2018.
+pwc:	pwc.o
+	$(CC) $(LDFLAGS) -o $@ $^ -pthread
+
 .PHONY: clean
 clean:
-	rm -f $(UTIL) $(CMDS) ftwdb2.o transactor.o
+	rm -f $(UTIL) $(CMDS) ftwdb2.o transactor.o pwc.o
