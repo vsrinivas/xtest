@@ -14,4 +14,4 @@ fftw: libw.a
 	$(CC) -DTEST -g -o fftw fftw.c workqueue.c libw.a -pthread
 
 clean:
-	rm -f $(OBJS) libw.a sftw
+	rm -f $(OBJS) libw.a sftw dumpdb fftw
