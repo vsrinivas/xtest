@@ -15,41 +15,31 @@
 static leveldb::DB* db;
 static int nFiles;
 
-void md5sum(const char *path, char *buf) {
-	FILE *mdproc;
-	int buflen;
-	char *cmdbuf;
-	char *readbuf;
-	char *p;
-	char *q;
+/* MD5 a file */
+char* md5sum(char* path) {
+        FILE* fp;
+        char buf[511];
+        char hash[32 + 1];
 
-	buflen = strlen("md5sum ") + strlen(path) + 1 + 1 + 1 + 1 + 1;
-	cmdbuf = (char*) malloc(buflen);
-	bzero(cmdbuf, buflen);
+        bzero(buf, sizeof(buf));
+        sprintf(buf, "md5sum \"%s\"", path);
 
-	sprintf(cmdbuf, "md5sum \"%s\"", path);
+        fp = popen(buf, "r");
+        if (!fp)
+                return NULL;
 
-	readbuf = (char*) malloc(10240);
-	bzero(readbuf, 10240);
-	mdproc = popen(cmdbuf, "r");
-	fread(readbuf, 10240, 1, mdproc);
-	pclose(mdproc);
-
+        bzero(md5sum, sizeof(md5sum));
 	/* 48893e0960c48f79cc455cacd44a6dc0 path */
-	p = readbuf;
+        fgets(md5sum, 32, fp);
+        pclose(fp);
 
-	strncpy(buf, p, 32);
+        if (md5sum[0] == 0)
+                return NULL;
 
-	free(readbuf);
-	free(cmdbuf);
+        return strdup(md5sum);
 }
 
 int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
-	char md5[32 + 1];
-
-	//printf(">> %s\n", path);
-	bzero(md5, sizeof(md5));
-
 	switch (typeflag) {
 	case FTW_F: {
 		if ((sb->st_mode & S_IFMT) != S_IFREG)
@@ -57,11 +47,10 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 
 		leveldb::Slice key(path, strlen(path) + 1);
 
-		md5sum(path, md5);
+		char* md = md5sum(path);
 		printf("==> %s, %s\n", path, md5);
 
-		leveldb::Slice value(md5, sizeof(md5));
-
+		leveldb::Slice value(md, 32);
 		++nFiles;
 		auto rc = db->Put(leveldb::WriteOptions(), key, value);
 		break;

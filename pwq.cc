@@ -51,36 +51,11 @@ static void init() {
 void PWQ::Run(std::function<void()> fn) {
   pthread_once(&once, init);
 
-#if 0
-  if (nItems.load() > 8) {
-    for (int i = 0; i < nItems.load(); i++) {
-      sched_yield();
-      sync();
-    }
-  }
-  if (nItems.load() > 32) {
-    usleep(100);
-    sync();
-  }
-#endif
-#if 0
-  if (nItems.load() > 32) {
-    printf("> XOFF %d\n", nItems.load());
-    sync();
-    usleep(10 * std::min(4, nItems.load()));
-    printf("> XON %d\n", nItems.load());
-  }
-#endif
-
   pthread_mutex_lock(&mtx);
   items.push(fn);
   nItems++;
   pthread_cond_signal(&cv);
   pthread_mutex_unlock(&mtx);
-
-  if (nItems.load() > 32) {
-    usleep(100);
-  }
 }
 
 void PWQ::Flush() {
