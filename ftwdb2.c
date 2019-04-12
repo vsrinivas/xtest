@@ -9,10 +9,9 @@
 #include <fcntl.h>
 #include <ftw.h>
 #include <string.h>
+#include <db.h>
 
-#include <leveldb/db.h>
-
-static leveldb::DB* db;
+static DB *db;
 static int nFiles;
 
 void md5sum(const char *path, char *buf) {
@@ -24,12 +23,12 @@ void md5sum(const char *path, char *buf) {
 	char *q;
 
 	buflen = strlen("md5sum ") + strlen(path) + 1 + 1 + 1 + 1 + 1;
-	cmdbuf = (char*) malloc(buflen);
+	cmdbuf = malloc(buflen);
 	bzero(cmdbuf, buflen);
 
 	sprintf(cmdbuf, "md5sum \"%s\"", path);
 
-	readbuf = (char*) malloc(10240);
+	readbuf = malloc(10240);
 	bzero(readbuf, 10240);
 	mdproc = popen(cmdbuf, "r");
 	fread(readbuf, 10240, 1, mdproc);
@@ -45,27 +44,31 @@ void md5sum(const char *path, char *buf) {
 }
 
 int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
+	DBT key, value;
 	char md5[32 + 1];
+	int rc;
 
 	//printf(">> %s\n", path);
 	bzero(md5, sizeof(md5));
 
 	switch (typeflag) {
-	case FTW_F: {
+	case FTW_F:
 		if ((sb->st_mode & S_IFMT) != S_IFREG)
 			break;
 
-		leveldb::Slice key(path, strlen(path) + 1);
+		key.data = path;
+		key.size = strlen(path) + 1;
 
 		md5sum(path, md5);
 		printf("==> %s, %s\n", path, md5);
 
-		leveldb::Slice value(md5, sizeof(md5));
+		value.data = md5;
+		value.size = sizeof(md5);
 
 		++nFiles;
-		auto rc = db->Put(leveldb::WriteOptions(), key, value);
+		rc = db->put(db, &key, &value, 0);
 		break;
-	}
+
 	default:
 		break;
 	}
@@ -74,14 +77,14 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 }
 
 /* ftwdb <path> <dbfile> */
-int main(int argc, char *argv[])
+main(argc, argv)
+	int argc;
+	char *argv[];
 {
 	int i;
 
-	leveldb::Options options;
-	options.create_if_missing = true;
-	leveldb::Status status = leveldb::DB::Open(options, argv[2], &db);
-	if (!status.ok()) {
+	db = dbopen(argv[2], O_RDWR | O_CREAT, 0777, DB_BTREE, NULL);
+	if (!db) {
 		printf("Error creating db\n");
 		return -1;
 	}
@@ -89,6 +92,8 @@ int main(int argc, char *argv[])
 	i = nftw(argv[1], cb, 64, FTW_PHYS);
 	if (i) printf("%d err %d\n", i, errno);
 
-        delete db;
+	db->sync(db, 0);
+	db->close(db);
+
 	printf("%d files\n", nFiles);
 }

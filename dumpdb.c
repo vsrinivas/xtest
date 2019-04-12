@@ -6,6 +6,7 @@
 #include <strings.h>
 #include <fcntl.h>
 #include <db.h>
+#include <assert.h>
 
 main(argc, argv)
 	int argc;
@@ -17,6 +18,7 @@ main(argc, argv)
 	char *ks, *vs;
 
 	db = dbopen(argv[1], O_RDONLY, 0, DB_BTREE, NULL);
+	assert(db != NULL);
 
 	for (;;) {
 		i = db->seq(db, &key, &value, R_NEXT);
