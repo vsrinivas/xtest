@@ -11,44 +11,14 @@
 #include <string.h>
 
 #include <leveldb/db.h>
+#include "md5.h"
 
 static leveldb::DB* db;
 static int nFiles;
 
-void md5sum(const char *path, char *buf) {
-	FILE *mdproc;
-	int buflen;
-	char *cmdbuf;
-	char *readbuf;
-	char *p;
-	char *q;
-
-	buflen = strlen("md5sum ") + strlen(path) + 1 + 1 + 1 + 1 + 1;
-	cmdbuf = (char*) malloc(buflen);
-	bzero(cmdbuf, buflen);
-
-	sprintf(cmdbuf, "md5sum \"%s\"", path);
-
-	readbuf = (char*) malloc(10240);
-	bzero(readbuf, 10240);
-	mdproc = popen(cmdbuf, "r");
-	fread(readbuf, 10240, 1, mdproc);
-	pclose(mdproc);
-
-	/* 48893e0960c48f79cc455cacd44a6dc0 path */
-	p = readbuf;
-
-	strncpy(buf, p, 32);
-
-	free(readbuf);
-	free(cmdbuf);
-}
-
-int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
-	char md5[32 + 1];
-
-	//printf(">> %s\n", path);
-	bzero(md5, sizeof(md5));
+int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
+	char* val;
+	int rc = 0;
 
 	switch (typeflag) {
 	case FTW_F: {
@@ -57,23 +27,34 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 
 		leveldb::Slice key(path, strlen(path) + 1);
 
-		md5sum(path, md5);
+		val = md5sum(path);
+		if (!val) {
+ 			printf("error: %s\n", path);
+			rc = -1;
+			break;
+		}
 		printf("==> %s, %s\n", path, md5);
 
-		leveldb::Slice value(md5, sizeof(md5));
+		leveldb::Slice value(val, 32 + 1);
 
 		++nFiles;
-		auto rc = db->Put(leveldb::WriteOptions(), key, value);
+		auto s = db->Put(leveldb::WriteOptions(), key, value);
+		if (!s.ok()) {
+ 			printf("error: %s\n", path);
+			rc = -1;
+		}
+		free(val);
 		break;
 	}
 	default:
 		break;
 	}
 
-	return 0;
+	return rc;
 }
 
-/* ftwdb <path> <dbfile> */
+/* ftwdb2_leveldb <path> <dbfile> */
+/* Make a LevelDB mapping every file to its MD5SUM (in 32-byte ascii string) */
 int main(int argc, char *argv[])
 {
 	int i;
