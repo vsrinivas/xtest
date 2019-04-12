@@ -4,15 +4,22 @@
 #include <atomic>
 #include <functional>
 #include <queue>
+
+#include "barrier.h"
 #include "pwq.h"
 
-#define NUMPROC (4)
+#define MAX_NUMPROC (4)
+
+struct Workitem {
+  std::function<void()> callback;
+  Barrier* barrier;
+};
+
 static pthread_once_t once = PTHREAD_ONCE_INIT;
-static pthread_t workers[NUMPROC];
+static pthread_t workers[MAX_NUMPROC];
 static pthread_mutex_t mtx;
 static pthread_cond_t cv;
-static std::queue<std::function<void()>> items;
-static std::atomic<int> nItems;
+static std::queue<Workitem> items;
 static bool should_exit;
 
 static void* worker(void* arg) {
@@ -22,9 +29,9 @@ static void* worker(void* arg) {
     while (!items.empty()) {
       auto it = items.front();
       items.pop();
-      nItems--;
       pthread_mutex_unlock(&mtx);
-      it();
+      it.callback();
+      it.barrier->Dec();
       pthread_mutex_lock(&mtx);
     }
 
@@ -43,29 +50,17 @@ static void init() {
   should_exit = false;
   pthread_mutex_unlock(&mtx);
 
-  for (int i = 0; i < NUMPROC; i++) {
+  for (int i = 0; i < MAX_NUMPROC; i++) {
     pthread_create(&workers[i], NULL, &worker, NULL);
   }
 }
 
-void PWQ::Run(std::function<void()> fn) {
+void PWQ::Run(std::function<void()> fn, Barrier* barrier) {
   pthread_once(&once, init);
+  barrier->Inc();
 
   pthread_mutex_lock(&mtx);
-  items.push(fn);
-  nItems++;
+  items.push({fn, barrier});
   pthread_cond_signal(&cv);
   pthread_mutex_unlock(&mtx);
-}
-
-void PWQ::Flush() {
-  pthread_mutex_lock(&mtx);
-  should_exit = true;
-  pthread_cond_broadcast(&cv);
-  pthread_mutex_unlock(&mtx);
-
-  for (int i = 0; i < NUMPROC; i++) {
-    pthread_join(workers[i], NULL);
-  }
-  assert(nItems == 0);
 }
