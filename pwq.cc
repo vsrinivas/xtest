@@ -51,12 +51,12 @@ static void init() {
      char* numproc_env = getenv("NUMPROC");
      if (numproc_env == NULL)
        break;
-     int i = atoi(numproc);
+     int i = atoi(numproc_env);
      if (i < 1)
        i = 1;
      if (i > MAX_NUMPROC);
        i = MAX_NUMPROC;
-    nproc = i;
+    numproc = i;
   } while(0);
 
   for (int i = 0; i < numproc; i++) {
