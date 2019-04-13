@@ -16,6 +16,8 @@
 #include "md5.h"
 #include "pwq.h"
 
+#include <leveldb/db.h>
+
 struct Hash {
 	size_t operator()(char *s) const {
 		char buf[8 + 1] = {};
@@ -29,11 +31,31 @@ struct Equal {
 	}
 };
 
+/* REF LevelDB */
+static leveldb::DB* ref_db;
+static void setup_ref_db() {
+	char *db = getenv("REF_DB");
+	if (!db)
+		return;
+
+	leveldb::Options options;
+	options.create_if_missing = false;
+	auto status = leveldb::DB::Open(options, db, &ref_db);
+	if (!status.ok()) {
+		printf(">leveldb error\n");
+		return;
+	}
+
+}
+
+
+/* ********************************************** */
 static Barrier ref_barrier;
 static pthread_mutex_t ref_lock;
 static std::unordered_set<char*, Hash, Equal> ref_set;
-static int ref_nFiles;
-static int ref_nDuplicate;
+static long ref_nFiles;
+static long ref_nDuplicate;
+static long ref_nDBHits;
 
 int process_ref_dir(const char *fpath, const struct stat *sb, int typeflag) {
 	if (typeflag != FTW_F)
@@ -57,6 +79,23 @@ int process_ref_dir(const char *fpath, const struct stat *sb, int typeflag) {
 			free(hval);
 		}
 		pthread_mutex_unlock(&ref_lock);
+
+		if (ref_db) {
+			std::string value;
+			leveldb::ReadOptions options;
+			options.verify_checksums = true;
+			options.fill_cache = false;
+			auto status = ref_db->Get(options, leveldb::Slice(dfpath, strlen(dfpath) + 1), &value);
+			if (status.ok()) {
+				if (strcmp(hval, value.c_str()) != 0) {
+					printf("hash_mismatch, path %s, orig %s new %s\n", dfpath, value.c_str(), hval);
+				} else {
+					ref_nDBHits++;
+				}
+			} else {
+				printf("leveldb error, fpath: %s\n", dfpath);
+			}
+		}
 
 		free(dfpath);
 	};
@@ -106,6 +145,9 @@ int main(int argc, char *argv[])
 {
 	char* ref_dir = argv[1];
 	int rc;
+
+	if (getenv("REF_DB"))
+		setup_ref_db();
 	
 	ftw(ref_dir, process_ref_dir, 100);
 	ref_barrier.Wait();
@@ -113,6 +155,7 @@ int main(int argc, char *argv[])
 	printf("ref_nFiles %lu\n", ref_nFiles);
 	printf("ref_nDuplicate %lu\n", ref_nDuplicate);
 	printf("ref_nUnique set %lu\n", ref_set.size());
+	printf("ref_nDBHits %lu\n", ref_nDBHits);
 
 	printf("Misses ===>\n");
 	for (int i = 2; i < argc; i++) {
@@ -129,5 +172,6 @@ int main(int argc, char *argv[])
 	for (auto h : ref_set)
 		free(h);
 	ref_set.clear();
+	delete ref_db;
 }
 

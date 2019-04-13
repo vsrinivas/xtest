@@ -21,8 +21,14 @@ CMDS=\
 ftwdb2: ftwdb2.o $(MD5)
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy
 
+# CFLAGS=-static CXXFLAGS="-O -static" LDFLAGS="-static -pthread -lsnappy" make transactor
 transactor: transactor.o $(MD5) $(THREADS)
 	$(CXX) $(LDFLAGS) -o $@ $^ -pthread -lleveldb -lsnappy
+
+# Misc:
+# g++ -lsnappy  dbtransactor.cc -o dbtransactor /usr/lib/x86_64-linux-gnu/libleveldb.a /usr/lib/x86_64-linux-gnu/libsnappy.a -pthread
+# g++ -lsnappy  dbmerge.cc -o dbmerge /usr/lib/x86_64-linux-gnu/libleveldb.a /usr/lib/x86_64-linux-gnu/libsnappy.a -pthread
+# g++ -lsnappy  dumpdb2.cc -o dumpdb2 /usr/lib/x86_64-linux-gnu/libleveldb.a /usr/lib/x86_64-linux-gnu/libsnappy.a -pthread
 
 # Parallel wordcount; RC 2018.
 pwc:	pwc.o

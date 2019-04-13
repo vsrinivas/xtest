@@ -29,7 +29,7 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 
 		val = md5sum(path);
 		if (!val) {
- 			printf("error: %s\n", path);
+ 			printf("md5sum error: %s\n", path);
 			rc = -1;
 			break;
 		}
@@ -40,7 +40,7 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 		++nFiles;
 		auto s = db->Put(leveldb::WriteOptions(), key, value);
 		if (!s.ok()) {
- 			printf("error: %s\n", path);
+ 			printf("leveldb error: %s\n", path);
 			rc = -1;
 		}
 		free(val);
