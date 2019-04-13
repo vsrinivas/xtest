@@ -19,7 +19,7 @@ CMDS=\
 
 # CFLAGS=-static CXXFLAGS="-O -static" LDFLAGS="-static -pthread -lsnappy" make ftwdb2
 ftwdb2: ftwdb2.o $(MD5)
-	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy
+	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
 
 # CFLAGS=-static CXXFLAGS="-O -static" LDFLAGS="-static -pthread -lsnappy" make transactor
 transactor: transactor.o $(MD5) $(THREADS)
