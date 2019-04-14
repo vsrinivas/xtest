@@ -20,7 +20,7 @@ bool ScopedFile::Read() {
   if (fd_ == -1)
     return false;
   
-  if (sb_.st_size < 1048576) {
+  if (sb_.st_size < 262144ull) {
     is_mmap_ = false;
     data_ = (char*) malloc(sb_.st_size);
 
@@ -29,9 +29,10 @@ bool ScopedFile::Read() {
   } else {
     is_mmap_ = true;
     data_ = (char*) mmap(NULL, sb_.st_size, PROT_READ,
-		 	 MAP_SHARED | MAP_POPULATE, fd_, 0);
+			 MAP_SHARED | MAP_POPULATE, fd_, 0);
     if (data_ == MAP_FAILED)
       return false;
+    madvise(data_, sb_.st_size, MADV_SEQUENTIAL);
   }
   return true;
 }

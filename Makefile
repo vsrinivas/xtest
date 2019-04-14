@@ -30,6 +30,9 @@ transactor: transactor.o $(MD5) $(THREADS)
 # g++ -lsnappy  dbmerge.cc -o dbmerge /usr/lib/x86_64-linux-gnu/libleveldb.a /usr/lib/x86_64-linux-gnu/libsnappy.a -pthread
 # g++ -lsnappy  dumpdb2.cc -o dumpdb2 /usr/lib/x86_64-linux-gnu/libleveldb.a /usr/lib/x86_64-linux-gnu/libsnappy.a -pthread
 
+# gcc -O2 -c -o md5.o md.c
+# g++ -O2 -o ftwdb2_mt ftwdb2_mt.cc worker.cc readn.cc md5.o -lssl -lcrypto -lleveldb -lsnappy -pthread
+
 # Parallel wordcount; RC 2018.
 pwc:	pwc.o
 	$(CC) $(LDFLAGS) -o $@ $^ -pthread

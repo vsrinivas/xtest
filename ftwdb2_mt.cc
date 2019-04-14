@@ -15,9 +15,12 @@
 #include "worker.h"
 #include "readn.h"
 
+#include "credit.h"
+
 static Worker *hasher;
 static leveldb::DB* db;
 static int nFiles;
+static Credit *g_credit;
 
 int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 	ScopedFile* s;
@@ -27,13 +30,15 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 		if ((sb->st_mode & S_IFMT) != S_IFREG)
 			break;
 
+		g_credit->Get(1);
+
 		s = new ScopedFile(strdup(path), *sb);
 		if (!s->Read()) {
 			printf("read error %s\n", path);
 			_Exit(-1);
 		}
 
-		hasher->Run([s]() {
+		auto fn = ([s]() {
 			leveldb::Slice key(s->path(), strlen(s->path()) + 1);
 
 			char* val = md5sumbuf(s->data(), s->size());
@@ -53,7 +58,12 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 			}
 			free(val);
 			delete s;
+			g_credit->Put(1);
 		});
+		if (sb->st_size < 65536)
+			fn();
+		else
+			hasher->Run(std::move(fn));
 		break;
 	}
 	default:
@@ -68,6 +78,8 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 int main(int argc, char *argv[])
 {
 	int i;
+
+	g_credit = new Credit(100);
 
 	hasher = new Worker();
 	hasher->Start();
@@ -86,6 +98,7 @@ int main(int argc, char *argv[])
 	hasher->Stop();
 	delete hasher;
         delete db;
+	delete g_credit;
 
 	printf("%d files\n", nFiles);
 }
