@@ -20,7 +20,8 @@
 static Worker *hasher;
 static leveldb::DB* db;
 static int nFiles;
-static Credit *g_credit;
+static Credit *g_credit;  // Credits for open files; otherwise cb->hasher queue can get very deep
+static MUnmap *delete_later;
 
 int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 	ScopedFile* s;
@@ -37,6 +38,7 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 			printf("read error %s\n", path);
 			_Exit(-1);
 		}
+		s->delete_later(delete_later);
 
 		auto fn = ([s]() {
 			leveldb::Slice key(s->path(), strlen(s->path()) + 1);
@@ -81,6 +83,9 @@ int main(int argc, char *argv[])
 
 	g_credit = new Credit(100);
 
+	delete_later = new MUnmap();
+	delete_later->Start();
+
 	hasher = new Worker();
 	hasher->Start();
 
@@ -97,7 +102,12 @@ int main(int argc, char *argv[])
 
 	hasher->Stop();
 	delete hasher;
+
         delete db;
+
+	delete_later->Stop();
+	delete delete_later;
+
 	delete g_credit;
 
 	printf("%d files\n", nFiles);

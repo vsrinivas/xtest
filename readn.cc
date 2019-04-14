@@ -9,7 +9,11 @@ ScopedFile::~ScopedFile() {
   if (!is_mmap_) {
     free(data_);
   } else {
-    munmap(data_, sb_.st_size);
+    if (m_) {
+      m_->Push(data_, sb_.st_size);
+    } else {
+      munmap(data_, sb_.st_size);
+    }
   }
   free(path_);
   close(fd_);
