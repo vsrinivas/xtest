@@ -8,8 +8,10 @@
 #include <pthread.h>
 #include <atomic>
 #include <unordered_set>
+#include "barrier.h"
 #include "pwq.h"
 #include "md5.h"
+#include "cp.h"
 
 struct Hash {
 	size_t operator()(char *s) const {
@@ -33,6 +35,7 @@ static std::atomic<uint64_t> nFiles;
 static std::atomic<uint64_t> nUnique;
 static std::atomic<uint64_t> nDuplicate;
 static std::atomic<uint64_t> Seq;
+static Barrier bar_;
 
 // Pipeline:
 // 	1. md5								x
@@ -62,7 +65,7 @@ int processfile(const char *fpath, const struct stat *sb, int typeflag) {
 
 	char *dfpath = strdup(fpath);
 	PWQ::Run([dfpath]() {
-		char* hval = md5(dfpath);
+		char* hval = md5sum(dfpath);
 		bool found;
 
 		pthread_mutex_lock(&mtx);
@@ -75,7 +78,7 @@ int processfile(const char *fpath, const struct stat *sb, int typeflag) {
 
 		if (!found) {
 			// Copy the CR2;
-			char cpbuf[511];
+			char dcpbuf[1024];
 			char *spath = rindex(dfpath, '/');
 			assert(spath);
 			char *filename = strdup(spath + 1);	// just the raw filename
@@ -83,29 +86,29 @@ int processfile(const char *fpath, const struct stat *sb, int typeflag) {
 			assert(q);
 			*q = 0;
 
-			bzero(cpbuf, sizeof(cpbuf));
+			bzero(dcpbuf, sizeof(dcpbuf));
 			auto seq = Seq++;
-			sprintf(cpbuf, "cp \"%s\" %s/%s.%lu.CR2", dfpath, dst, filename, seq);
-			printf("> %s\n", cpbuf);
-			system(cpbuf);
+			sprintf(dcpbuf, "%s/%s.%lu.CR2", dst, filename, seq);
+			printf("> cp %s %s\n", dfpath, dcpbuf);
+			copy_file(dfpath, dcpbuf);
 
 			// Copy the JPG.
-			bzero(cpbuf, sizeof(cpbuf));
+			bzero(dcpbuf, sizeof(dcpbuf));
 			char *r = rindex(dfpath, '.');
 			r[1] = 'J'; r[2] = 'P'; r[3] = 'G';
 			if (access(dfpath, R_OK) != 0) {
 				r[1] = 'j'; r[2] = 'p'; r[3] = 'g';
 			}
-			sprintf(cpbuf, "cp \"%s\" %s/%s.%lu.JPG", dfpath, dst, filename, seq);
+			sprintf(dcpbuf, "%s/%s.%lu.JPG", dst, filename, seq);
 			free(filename);
-			printf("> %s\n", cpbuf);
-			system(cpbuf);
+			printf("> cp %s %s\n", dfpath, dcpbuf);
+			copy_file(dfpath, dcpbuf);
 		} else {
 			nDuplicate++;
 			free(hval);
 		}
 		free(dfpath);
-	});
+	}, &bar_);
 
 	return 0;
 }
@@ -122,8 +125,8 @@ int main(int argc, char *argv[]) {
 	src = argv[1];
 	dst = argv[2];
 	int rc = ftw(src, processfile, 100);
+	bar_.Wait();
 
-	PWQ::Flush();
 	printf("%lu files, %lu unique, %lu duplicate\n", nFiles.load(), nUnique.load(), nDuplicate.load());
 
 	for (auto h : md5set) {
