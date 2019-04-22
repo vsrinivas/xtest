@@ -71,8 +71,8 @@ int main(int argc, char* argv[])
 	delete it;
 	delete candidate;
 
-	printf("nRefFiles %d\n", nRefFiles);
-	printf("nDuplicates %d\n", nDuplicates);
-	printf("nRefUnique %d\n", ref_hashes.size()); // nDuplicates + this == nRefFiles
-	printf("nMisses %d\n", nMisses);
+	printf("nRefFiles %d\n", nRefFiles);							// Files in the reference db
+	printf("nDuplicates %d\n", nDuplicates);						// Non-unique files in refdb
+	printf("nRefUnique %d\n", ref_hashes.size()); // nDuplicates + this == nRefFiles	// Unique files in refdb
+	printf("nMisses %d\n", nMisses);							// Files in candidate not in ref
 }

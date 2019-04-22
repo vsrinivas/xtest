@@ -34,6 +34,8 @@ static std::unordered_set<char*, Hash, Equal> md5set;
 static std::atomic<uint64_t> nFiles;
 static std::atomic<uint64_t> nUnique;
 static std::atomic<uint64_t> nDuplicate;
+static std::atomic<uint64_t> nCR2Err;
+static std::atomic<uint64_t> nJPGErr;
 static std::atomic<uint64_t> Seq;
 static Barrier bar_;
 
@@ -51,6 +53,9 @@ int processfile(const char *fpath, const struct stat *sb, int typeflag) {
 
 	// Filter for Canon CR2 real files.
 	if (typeflag != FTW_F)
+		return 0;
+
+	if (sb->st_size == 0)
 		return 0;
 
 	// Have '.cr2'?
@@ -90,7 +95,9 @@ int processfile(const char *fpath, const struct stat *sb, int typeflag) {
 			auto seq = Seq++;
 			sprintf(dcpbuf, "%s/%s.%lu.CR2", dst, filename, seq);
 			printf("> cp %s %s\n", dfpath, dcpbuf);
-			copy_file(dfpath, dcpbuf);
+			int rx = copy_file_hash(dfpath, dcpbuf, hval);
+			if (rx)
+				nCR2Err++;
 
 			// Copy the JPG.
 			bzero(dcpbuf, sizeof(dcpbuf));
@@ -102,7 +109,9 @@ int processfile(const char *fpath, const struct stat *sb, int typeflag) {
 			sprintf(dcpbuf, "%s/%s.%lu.JPG", dst, filename, seq);
 			free(filename);
 			printf("> cp %s %s\n", dfpath, dcpbuf);
-			copy_file(dfpath, dcpbuf);
+			int ry = copy_file(dfpath, dcpbuf);
+			if (ry)
+				nJPGErr++;
 		} else {
 			nDuplicate++;
 			free(hval);
@@ -128,6 +137,7 @@ int main(int argc, char *argv[]) {
 	bar_.Wait();
 
 	printf("%lu files, %lu unique, %lu duplicate\n", nFiles.load(), nUnique.load(), nDuplicate.load());
+	printf("%lu nCR2Err %lu nJPGErr \n", nCR2Err.load(), nJPGErr.load());
 
 	for (auto h : md5set) {
 		free(h);

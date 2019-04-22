@@ -3,54 +3,37 @@
 #include <string.h>
 #include <strings.h>
 #include <limits.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include <openssl/md5.h>
+#include "md5.h"
 
 /* MD5 a file */
 char *md5sum(const char *path) {
-	FILE* fp;
-	unsigned char hash_buf[MD5_DIGEST_LENGTH];
-	MD5_CTX hash_context;
-	size_t bytes;
-	char data[1];
-	unsigned char sum[2 * MD5_DIGEST_LENGTH + 1];
-	int i, j;
-	int error = 0;
+	char *p; 
+	char *q; 
+	int fd;
+	struct stat sb;
 
-	fp = fopen(path, "rb");
-	if (!fp)
+	fd = open(path, O_RDONLY);
+	if (!fd)
 		return NULL;
 
-	j = 0;
-	bytes = 0;
-	bzero(data, sizeof(data));
-	bzero(sum, sizeof(sum));
+	fstat(fd, &sb);
 
-	MD5_Init(&hash_context);
-	for (;;) {
-		bytes = fread(data, sizeof(data), 1, fp);
-		if (bytes < sizeof(data)) {
-			if (ferror(fp)) {
-				// Error!
-				error = 1;
-				break;
-			}
-		}
-
-		MD5_Update(&hash_context, data, bytes);
-		if (bytes < sizeof(data))
-			if (feof(fp))
-				break;
+	p = mmap(0, sb.st_size, PROT_READ, MAP_FILE|MAP_SHARED|MAP_POPULATE, fd, 0);
+	if (p == MAP_FAILED) {
+		close(fd);
+		return NULL;
 	}
-	MD5_Final(hash_buf, &hash_context);
-	fclose(fp);
 
-	for (i = 0; i < MD5_DIGEST_LENGTH; i++)
-		j += sprintf(&sum[j], "%02x", hash_buf[i]);
-
-	if (error)
-		return NULL;
-	return strdup(sum);
+	q = md5sumbuf((const char *) p, sb.st_size);
+	munmap(p, sb.st_size);
+	close(fd);
+	return q;
 }
 
 char *md5sumbuf(const char *buf, size_t size) {
