@@ -25,6 +25,9 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 		if ((sb->st_mode & S_IFMT) != S_IFREG)
 			break;
 
+		if (sb->st_size == 0)
+			break;
+
 		leveldb::Slice key(path, strlen(path) + 1);
 
 		val = md5sum(path);

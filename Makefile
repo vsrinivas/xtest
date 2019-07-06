@@ -25,6 +25,12 @@ ftwdb2: ftwdb2.o $(MD5)
 transactor: transactor.o $(MD5) $(THREADS)
 	$(CXX) $(LDFLAGS) -o $@ $^ -pthread -lleveldb -lsnappy
 
+leveldb_to_bdb:
+	$(CXX) -o leveldb_to_bdb leveldb_to_bdb.cc -lleveldb -lsnappy -ldb
+
+bdb_to_leveldb:
+	$(CXX) -o bdb_to_leveldb bdb_to_leveldb.cc -lleveldb -lsnappy -ldb
+
 # Misc:
 # g++ -lsnappy  dbtransactor.cc -o dbtransactor /usr/lib/x86_64-linux-gnu/libleveldb.a /usr/lib/x86_64-linux-gnu/libsnappy.a -pthread
 # g++ -lsnappy  dbmerge.cc -o dbmerge /usr/lib/x86_64-linux-gnu/libleveldb.a /usr/lib/x86_64-linux-gnu/libsnappy.a -pthread
