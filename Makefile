@@ -52,4 +52,4 @@ olddumpdb:
 
 .PHONY: clean
 clean:
-	rm -f $(UTIL) $(CMDS) ftwdb2.o transactor.o pwc.o
+	rm -f $(UTIL) $(CMDS) ftwdb2.o transactor.o pwc.o oldftwdb olddumpdb

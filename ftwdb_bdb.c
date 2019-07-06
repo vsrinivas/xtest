@@ -376,12 +376,14 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 	int rc;
 
 	//printf(">> %s\n", path);
-	bzero(md5, sizeof(md5));
 
 	switch (typeflag) {
 	case FTW_F:
 		if ((sb->st_mode & S_IFMT) != S_IFREG)
 			break;
+
+                if (sb->st_size == 0)
+                        break;
 
 		key.data = path;
 		key.size = strlen(path) + 1;
