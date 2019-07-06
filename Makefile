@@ -43,6 +43,13 @@ bdb_to_leveldb:
 pwc:	pwc.o
 	$(CC) $(LDFLAGS) -o $@ $^ -pthread
 
+
+oldftwdb:
+	$(CC) $(LDFLAGS) -o $@ ftwdb_bdb.c
+
+olddumpdb:
+	$(CC) $(LDFLAGS) -o $@ dumpdb.c
+
 .PHONY: clean
 clean:
 	rm -f $(UTIL) $(CMDS) ftwdb2.o transactor.o pwc.o
