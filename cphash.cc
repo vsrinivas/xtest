@@ -496,6 +496,39 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 	return 0;
 }
 
+int prefill(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
+	int rc;
+
+	//printf(">> %s\n", path);
+
+	switch (typeflag) {
+	case FTW_F: {
+		if ((sb->st_mode & S_IFMT) != S_IFREG)
+			break;
+
+                if (sb->st_size == 0)
+                        break;
+
+		char *s = md5sum(path);
+		printf("prefill ==> %s, %s\n", path, s);
+
+		std::string hash(s);
+		if (ref_hashes.find(hash) != ref_hashes.end()) {
+		} else {
+			ref_hashes.insert(hash);
+		}
+
+		free(s);
+		break;
+	}
+	default: {
+		break;
+	}
+	}
+
+	return 0;
+}
+
 // cphash <src directory> <dst directory>
 // dest directory must exist.
 // Copy from src->dst, doesn't copy file if it exists in dst hash table already.
@@ -504,14 +537,22 @@ int main(int argc, char *argv[])
 {
 	int i;
 
-	dst_fd = dirfd(opendir(argv[2]));
+	auto dir = opendir(argv[2]);
+	dst_fd = dirfd(dir);
 	if (dst_fd == -1)
 		return -1;
+
+	i = nftw(argv[2], prefill, 64, FTW_PHYS);
+	if (i) {
+		printf("dst %d err %d\n", i, errno);
+	}
 
 	i = nftw(argv[1], cb, 64, FTW_PHYS);
 	if (i) {
 		printf("%d err %d\n", i, errno);
 	}
+
+	closedir(dir);
 
 	printf("%d files\n", nFiles);
 	printf("%d duplicates\n", nDuplicates);
