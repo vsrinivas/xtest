@@ -376,11 +376,50 @@ char *md5sumbuf(const char *buf, size_t size) {
 	}
 	return strdup((const char *) sum);
 }
+/// ------------------------------------- FNV hash
+#define FNV_PRIME_32 16777619
+#define FNV_OFFSET_32 2166136261U
+uint32_t FNV32(const char *s, size_t len) {		// FNV1a
+	uint32_t hash = FNV_OFFSET_32;
+	size_t i;
+	for(i = 0; i < len; i++) {
+		hash = hash ^ (s[i]);
+		hash = hash * FNV_PRIME_32;
+	}
+	return hash;
+} 
+
+uint32_t fnvpath(const char *path) {
+        char *p;
+	uint32_t q;
+        int fd;
+        struct stat sb;
+
+        fd = open(path, O_RDONLY);
+        if (!fd)
+                return 0;
+
+        fstat(fd, &sb);
+
+        p = (char *) mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+        if (p == MAP_FAILED) {
+                close(fd);
+                return 0;
+        }
+
+        q = FNV32((const char *) p, sb.st_size);
+        munmap(p, sb.st_size);
+        close(fd);
+        return q;
+}
 
 
+/// ----
 static int nFiles;
 static int nDuplicates;
 static int nUnique;
+static int nDisaster;
+static std::unordered_set<uint32_t> ref_hashes_fnv;
 static std::unordered_set<std::string> ref_hashes;
 static int dst_fd;
 static int nSeq;
@@ -475,9 +514,18 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 
 		std::string hash(s);
 		if (ref_hashes.find(hash) != ref_hashes.end()) {
+			uint32_t fnv = fnvpath(path);
+			if (ref_hashes_fnv.find(fnv) == ref_hashes_fnv.end()) {
+				// md5 collision?
+				++nDisaster;
+				return -1;
+			}
+
 			nDuplicates++;
 		} else {
 			ref_hashes.insert(hash);
+			uint32_t fnv = fnvpath(path);
+			ref_hashes_fnv.insert(fnv);
 			rc = copy(dst_fd, path, sb);
 			if (rc == -1) {
 				return -1;
@@ -518,6 +566,9 @@ int prefill(const char *path, const struct stat *sb, int typeflag, struct FTW *f
 			ref_hashes.insert(hash);
 		}
 
+		uint32_t fnv = fnvpath(path);
+		ref_hashes_fnv.insert(fnv);
+
 		free(s);
 		break;
 	}
@@ -557,4 +608,5 @@ int main(int argc, char *argv[])
 	printf("%d files\n", nFiles);
 	printf("%d duplicates\n", nDuplicates);
 	printf("%d unique\n", nUnique);
+	printf("%d MD5 collisions\n", nDisaster);
 }
