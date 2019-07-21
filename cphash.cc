@@ -334,6 +334,23 @@ void MD5_Final(unsigned char *result, MD5_CTX *ctx)
 // XXX
 // MD5 ---------------------------------------------------------
 
+char *md5sumat(int fd) {
+	char *p; 
+	char *q; 
+	struct stat sb;
+        fstat(fd, &sb);
+
+        p = (char *) mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+        if (p == MAP_FAILED) {
+                close(fd);
+                return NULL;
+        }
+
+        q = md5sumbuf((const char *) p, sb.st_size);
+        munmap(p, sb.st_size);
+        return q;
+}
+
 /* MD5 a file */
 char *md5sum(const char *path) {
 	char *p; 
@@ -415,7 +432,7 @@ uint32_t fnvpath(const char *path) {
 
 
 /// ----
-static int nFiles;
+static uint64_t nFiles;
 static int nDuplicates;
 static int nUnique;
 static int nDisaster;
@@ -423,6 +440,9 @@ static std::unordered_set<uint32_t> ref_hashes_fnv;
 static std::unordered_set<std::string> ref_hashes;
 static int dst_fd;
 static int nSeq;
+static uint64_t nBytesSrc;
+static uint64_t nBytesCopied;
+static uint64_t nFilesCopied;
 
 int mkpath(int dst, char *dir, mode_t mode)
 {
@@ -457,7 +477,7 @@ int mkpath(int dst, char *dir, mode_t mode)
     return rc;
 }
 
-static int copy(int dst, const char *path, const struct stat *sb) {
+static int copy(int dst, const char *path, const struct stat *sb, char *src_hash) {
 	int sf = open(path, O_RDONLY);
 	if (sf == -1)
 		return -1;
@@ -490,6 +510,15 @@ static int copy(int dst, const char *path, const struct stat *sb) {
 	munmap(p, sb->st_size);
 	close(sf);
 	fsync(df);
+
+	char* dsthash = md5sumat(df);
+	if (strcmp(src_hash, dsthash) != 0) {
+		free(dsthash);
+		close(df);
+		return -1;
+	}
+
+	free(dsthash);
 	close(df);
 	return 0;
 } 
@@ -508,6 +537,7 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
                         break;
 
 		++nFiles;
+		nBytesSrc += sb->st_size;
 
 		char *s = md5sum(path);
 		printf("==> %s, %s\n", path, s);
@@ -526,7 +556,9 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 			ref_hashes.insert(hash);
 			uint32_t fnv = fnvpath(path);
 			ref_hashes_fnv.insert(fnv);
-			rc = copy(dst_fd, path, sb);
+			nFilesCopied++;
+			nBytesCopied += sb->st_size;
+			rc = copy(dst_fd, path, sb, /*src_hash=*/s);
 			if (rc == -1) {
 				return -1;
 			}
@@ -605,8 +637,10 @@ int main(int argc, char *argv[])
 
 	closedir(dir);
 
-	printf("%d files\n", nFiles);
+	printf("%llu files\n", nFiles);
 	printf("%d duplicates\n", nDuplicates);
 	printf("%d unique\n", nUnique);
 	printf("%d MD5 collisions\n", nDisaster);
+	printf("Source %llu files (%llu bytes), Copied %llu files (%llu bytes)\n",
+		nFiles, nBytesSrc, nFilesCopied, nBytesCopied);
 }
