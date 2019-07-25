@@ -1,0 +1,6 @@
+[submodule "cse550"]
+	path = cse550
+	url = /home/vsrinivas/git/cse550
+[submodule "cse551"]
+	path = cse551
+	url = /home/vsrinivas/git/cse551
