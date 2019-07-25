@@ -8,6 +8,14 @@
 #include <unistd.h>
 #include <stdio.h>
 
+
+#ifndef MIN
+#define MIN(x,y)	(((x)<(y))? (x):(y))
+#endif
+#ifndef MAX
+#define MAX(x,y)	(((x)>(y))? (x):(y))
+#endif
+
 int sum(uint64_t *buf, int len) {
 	int i;
 	for (i = 0; i < len/8; i++) {
@@ -25,6 +33,7 @@ int main(int argc, char *argv[]) {
 	unsigned long long blocks;
 	char *chkbuf;
 	unsigned long long tblk;
+	unsigned long long ntblk;
 	int rc;
 
 	fd = open(argv[1], O_RDONLY);
@@ -36,16 +45,26 @@ int main(int argc, char *argv[]) {
 	N = 5000;
 
 	srand(11);
+	for (n = 0; n < MIN(N, 128); n++) {
+		ntblk = random() % blocks;
+		readahead(fd, ntblk * 512, M);
+	}
 
 	chkbuf = calloc(1, M);
+	srand(11);
+	tblk = random() % blocks;
 	for (n = 0; n < N; n++) {
-		tblk = random() % blocks;
 		rc = pread(fd, chkbuf, M, tblk * 512);
 		if (rc != M)
 			return 2;
 
-		if (sum(chkbuf, M) != 0)
+		ntblk = random() % blocks;
+		readahead(fd, ntblk * 512, M);
+		if (sum((uint64_t*)chkbuf, M) != 0) {
+			printf("%llu\n", tblk);
 			return 3;
+		}
+		tblk = ntblk;
 	}
 	free(chkbuf);
 	printf("Ok.\n");

@@ -1,7 +1,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define N	16
+#define N	32
 
 time_t tms[N];
 int i;

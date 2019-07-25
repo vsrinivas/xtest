@@ -556,13 +556,15 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 			ref_hashes.insert(hash);
 			uint32_t fnv = fnvpath(path);
 			ref_hashes_fnv.insert(fnv);
+			nUnique++;
+			
 			nFilesCopied++;
 			nBytesCopied += sb->st_size;
+		
 			rc = copy(dst_fd, path, sb, /*src_hash=*/s);
 			if (rc == -1) {
 				return -1;
 			}
-			nUnique++;
 		}
 
 		free(s);

@@ -8,7 +8,7 @@
 #include "barrier.h"
 #include "pwq.h"
 
-#define MAX_NUMPROC (4)
+#define MAX_NUMPROC (1)
 
 struct Workitem {
   std::function<void()> callback;
