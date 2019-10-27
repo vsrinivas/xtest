@@ -452,17 +452,17 @@ int mkpath(int dst, char *dir, mode_t mode)
     //printf("%d: Enter %s\n", nSeq, dir);
     struct stat sb = {};
     if (!dir) {
-     //   printf("%d Exit0 %s\n", nSeq, dir);
+       printf("%d Exit0 %s\n", nSeq, dir);
         errno = EINVAL;
         return 1;
     }
     if (fstatat(dst, dir, &sb, 0) == 0) {
-     // printf("%d Exit1 %s\n", nSeq, dir);
+      //printf("%d Exit1 %s\n", nSeq, dir);
       free(odir);
       return 0;
     }
     if (dir[0] == '.' && dir[1] == 0x0) {
-      // printf("%d Exit2 %s\n", nSeq, dir);
+       //printf("%d Exit2 %s\n", nSeq, dir);
       free(odir);
       return 0;
     }
@@ -471,7 +471,7 @@ int mkpath(int dst, char *dir, mode_t mode)
     mkpath(dst, dirname(dirs), mode);
     free(dirs);
 
-    //printf("%d Exit %s\n", nSeq, dir);
+   // printf("%d Exit %s\n", nSeq, dir);
     int rc = mkdirat(dst, odir, mode);
     free(odir);
     return rc;
@@ -494,6 +494,7 @@ static int copy(int dst, const char *path, const struct stat *sb, char *src_hash
 
 	int df = openat(dst, path, O_CREAT | O_EXCL | O_RDWR, sb->st_mode);
 	if (df == -1) {
+		printf("openat: %d\n", errno);
 		munmap(p, sb->st_size);
 		close(sf);
 		return -1;
@@ -526,7 +527,7 @@ static int copy(int dst, const char *path, const struct stat *sb, char *src_hash
 int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 	int rc;
 
-	//printf(">> %s\n", path);
+	printf(">> %s\n", path);
 
 	switch (typeflag) {
 	case FTW_F: {

@@ -18,8 +18,45 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <ftw.h>
-#include <deque>
+#include <pthread.h>
+#include <functional>
 #include <unordered_set>
+#include <atomic>
+#include <deque>
+
+///////////////////////////////////////////////
+static std::atomic<bool> g_should_exit;
+static std::deque<std::function<void()>> g_work;
+static pthread_mutex_t g_mtx;
+
+extern "C" void* defer_main(void* arg) {
+	bool latched_should_exit = false;
+	for (;;) {
+		if (latched_should_exit)
+			break;
+		latched_should_exit = g_should_exit.load();
+
+		std::deque<std::function<void()>> work;
+		pthread_mutex_lock(&g_mtx);
+		work.swap(g_work);
+		pthread_mutex_unlock(&g_mtx);
+
+		while (!work.empty()) {
+			auto thing = work.front();
+			thing();
+			work.pop_front();
+		}
+		sleep(3);
+	}
+}
+
+void defer(std::function<void()> work) {
+	pthread_mutex_lock(&g_mtx);
+	g_work.push_back(work);
+	pthread_mutex_unlock(&g_mtx);
+} 
+
+///////////////////////////////////////////////
 
 #define FNV_PRIME_32 16777619
 #define FNV_OFFSET_32 2166136261U
@@ -33,27 +70,25 @@ uint32_t FNV32(const char *s, size_t len) {             // FNV1a
         return hash;
 } 
 
-uint32_t fnvpath(const char *path) {
+uint32_t fnvpath(const char *path, const struct stat *sb) {
         char *p;
         uint32_t q;
         int fd;
-        struct stat sb;
+	size_t sz = sb->st_size; 
 
         fd = open(path, O_RDONLY);
         if (!fd)
                 return 0;
 
-        fstat(fd, &sb);
-
-        p = (char *) mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+        p = (char *) mmap(0, sz, PROT_READ, MAP_SHARED, fd, 0);
         if (p == MAP_FAILED) {
                 close(fd);
                 return 0;
         }
 
-        q = FNV32((const char *) p, sb.st_size);
-        munmap(p, sb.st_size);
-        close(fd);
+        q = FNV32((const char *) p, sz);
+	defer([p, sz]() { munmap(p, sz); });
+	defer([fd]() { close(fd); });
         return q;
 }
 
@@ -82,7 +117,7 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 		++nFiles;
 		nBytes += sb->st_size;
 
-		uint32_t s = fnvpath(path);
+		uint32_t s = fnvpath(path, sb);
 		printf("==> %s, %x\n", path, s);
 
 		if (ref_hashes.find(s) != ref_hashes.end()) {
@@ -107,7 +142,10 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 
 int main(int argc, char *argv[])
 {
+	pthread_t defer_thr;
 	int i;
+
+	pthread_create(&defer_thr, nullptr, defer_main, nullptr);
 
 	i = nftw(argv[1], cb, 64, FTW_PHYS);
 	if (i) {
@@ -120,4 +158,8 @@ int main(int argc, char *argv[])
 	printf("\n");
 	printf("%lu bytes total\n", nBytes);
 	printf("%lu bytes unique\n", nBytesUnique);
+
+	g_should_exit.store(true);
+	pthread_join(defer_thr, nullptr);
+	return 0;
 }

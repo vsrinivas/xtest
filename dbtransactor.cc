@@ -11,6 +11,7 @@
 #include <leveldb/db.h>
 
 /* dbtransactor [ref] [src] */
+// Checks that every hash in |src| is in |ref|
 int main(int argc, char* argv[])
 {
 	std::unordered_set<std::string> ref_hashes;
