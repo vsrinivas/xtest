@@ -33,26 +33,23 @@ uint32_t FNV32(const char *s, size_t len) {             // FNV1a
         return hash;
 } 
 
-uint32_t fnvpath(const char *path) {
+uint32_t fnvpath(const char *path, const struct stat *sb) {
         char *p;
         uint32_t q;
         int fd;
-        struct stat sb;
 
         fd = open(path, O_RDONLY);
         if (!fd)
                 return 0;
 
-        fstat(fd, &sb);
-
-        p = (char *) mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+        p = (char *) mmap(0, sb->st_size, PROT_READ, MAP_SHARED, fd, 0);
         if (p == MAP_FAILED) {
                 close(fd);
                 return 0;
         }
 
-        q = FNV32((const char *) p, sb.st_size);
-        munmap(p, sb.st_size);
+        q = FNV32((const char *) p, sb->st_size);
+        munmap(p, sb->st_size);
         close(fd);
         return q;
 }
@@ -82,7 +79,7 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 		++nFiles;
 		nBytes += sb->st_size;
 
-		uint32_t s = fnvpath(path);
+		uint32_t s = fnvpath(path, sb);
 		printf("==> %s, %x\n", path, s);
 
 		if (ref_hashes.find(s) != ref_hashes.end()) {
