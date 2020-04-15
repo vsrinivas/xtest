@@ -4,3 +4,6 @@
 [submodule "cse551"]
 	path = cse551
 	url = /home/vsrinivas/git/cse551
+[submodule "ninja-test"]
+	path = ninja-test
+	url = http://m-net.arbornet.org/~sv5679/third_party/ninja-test/.git
