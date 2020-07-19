@@ -1,0 +1,47 @@
+CXXFLAGS = -std=c++11 -DLEVELDB_COMPILE_LIBRARY -DLEVELDB_PLATFORM_POSIX=1 -Ithird_party/leveldb -Ithird_party/leveldb/include
+LEVELDB_OBJ=\
+	    third_party/leveldb/db/builder.o \
+	    third_party/leveldb/db/c.o \
+	    third_party/leveldb/db/db_impl.o \
+	    third_party/leveldb/db/db_iter.o \
+	    third_party/leveldb/db/dbformat.o \
+	    third_party/leveldb/db/dumpfile.o \
+	    third_party/leveldb/db/filename.o \
+	    third_party/leveldb/db/log_reader.o \
+	    third_party/leveldb/db/log_writer.o \
+	    third_party/leveldb/db/memtable.o \
+	    third_party/leveldb/db/repair.o \
+	    third_party/leveldb/db/table_cache.o \
+	    third_party/leveldb/db/version_edit.o \
+	    third_party/leveldb/db/version_set.o \
+	    third_party/leveldb/db/write_batch.o \
+	    third_party/leveldb/table/block_builder.o \
+	    third_party/leveldb/table/block.o \
+	    third_party/leveldb/table/filter_block.o \
+	    third_party/leveldb/table/format.o \
+	    third_party/leveldb/table/iterator.o \
+	    third_party/leveldb/table/merger.o \
+	    third_party/leveldb/table/table_builder.o \
+	    third_party/leveldb/table/table.o \
+	    third_party/leveldb/table/two_level_iterator.o \
+	    third_party/leveldb/util/arena.o \
+	    third_party/leveldb/util/bloom.o \
+	    third_party/leveldb/util/cache.o \
+	    third_party/leveldb/util/coding.o \
+	    third_party/leveldb/util/comparator.o \
+	    third_party/leveldb/util/crc32c.o \
+	    third_party/leveldb/util/env.o \
+	    third_party/leveldb/util/filter_policy.o \
+	    third_party/leveldb/util/hash.o \
+	    third_party/leveldb/util/logging.o \
+	    third_party/leveldb/util/options.o \
+	    third_party/leveldb/util/status.o \
+	    third_party/leveldb/util/env_posix.o \
+	    third_party/leveldb/helpers/memenv/memenv.o
+
+
+libleveldb.a: $(LEVELDB_OBJ)
+	$(AR) qc libleveldb.a $(LEVELDB_OBJ)
+
+clean:
+	rm -f $(LEVELDB_OBJ) libleveldb.a
