@@ -59,3 +59,22 @@ olddumpdb:
 .PHONY: clean
 clean:
 	rm -f $(UTIL) $(CMDS) ftwdb2.o transactor.o pwc.o oldftwdb olddumpdb
+	rm -f \
+		bdb_to_leveldb \
+		countcphash \
+		countcphash2 \
+		cpcr2 \
+		cphash \
+		dbtransactor \
+		dumpdb \
+		dumpdb2 \
+		ftw2db2log \
+		ftwdb2f \
+		ftwdb2g \
+		ftwdb2_mt \
+		leveldb_to_bdb \
+		log2leveldb \
+		memback \
+		roundup_test \
+		sampzero \
+		zerorun

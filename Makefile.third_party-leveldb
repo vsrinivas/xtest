@@ -1,4 +1,5 @@
 CXXFLAGS = -std=c++11 -DLEVELDB_COMPILE_LIBRARY -DLEVELDB_PLATFORM_POSIX=1 -Ithird_party/leveldb -Ithird_party/leveldb/include
+
 LEVELDB_OBJ=\
 	    third_party/leveldb/db/builder.o \
 	    third_party/leveldb/db/c.o \
@@ -43,5 +44,6 @@ LEVELDB_OBJ=\
 libleveldb.a: $(LEVELDB_OBJ)
 	$(AR) qc libleveldb.a $(LEVELDB_OBJ)
 
+.PHONY: clean
 clean:
 	rm -f $(LEVELDB_OBJ) libleveldb.a
