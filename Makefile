@@ -14,22 +14,24 @@ UTIL=\
 
 CMDS=\
 	ftwdb2 \
-	transactor \
-	pwc
+	dbtransactor \
+	pwc \
+	while \
+	whilehammer
 
-# CFLAGS=-static CXXFLAGS="-O -static" LDFLAGS="-static -pthread -lsnappy" make ftwdb2
+.PHONY: default
+default: $(CMDS)
+
+.PHONY: check
+
+libleveldb.a:
+	$(MAKE) -f Makefile.third_party-leveldb libleveldb.a
+
 ftwdb2: ftwdb2.o $(MD5)
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
 
-ftwdb2f:
-	$(CXX) -static -O2 -g -o ftwdb2f ftwdb2f.cc md5f.c -lleveldb -lsnappy -lssl -lcrypto -pthread
-
-ftwdb2g:
-	$(CXX) -static -O2 -g -o ftwdb2g ftwdb2g.cc -lleveldb -lsnappy -lssl -lcrypto -pthread
-
-# CFLAGS=-static CXXFLAGS="-O -static" LDFLAGS="-static -pthread -lsnappy" make transactor
-transactor: transactor.o $(MD5) $(THREADS)
-	$(CXX) $(LDFLAGS) -o $@ $^ -pthread -lleveldb -lsnappy
+dbtransactor: dbtransactor.o $(MD5)
+	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
 
 leveldb_to_bdb:
 	$(CXX) -o leveldb_to_bdb leveldb_to_bdb.cc -lleveldb -lsnappy -ldb
@@ -58,6 +60,7 @@ olddumpdb:
 
 .PHONY: clean
 clean:
+	$(MAKE) -f Makefile.third_party-leveldb clean
 	rm -f $(UTIL) $(CMDS) ftwdb2.o transactor.o pwc.o oldftwdb olddumpdb
 	rm -f \
 		bdb_to_leveldb \
