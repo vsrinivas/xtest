@@ -8,6 +8,9 @@ tsan: tsan.c main.c
 	$(CC) -g -c -o main.o main.c
 	$(CC) -g -pthread -o tsan tsan.o main.o
 
+.PHONY: check
+check:
+
 .PHONY: clean
 clean:
 	rm -f tsan csan csan.o tsan.o main.o
