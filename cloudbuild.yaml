@@ -1,0 +1,7 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-f', 'Dockerfile.buildenv', '-t', 'buildenv', '.']
+- name: 'buildenv'
+  args: ['-c', 'make']
+- name: 'buildenv'
+  args: ['-c', 'make check']
