@@ -1,3 +1,6 @@
 [submodule "third_party/leveldb"]
 	path = third_party/leveldb
 	url = https://github.com/google/leveldb
+[submodule "third_party/ninja-test"]
+	path = third_party/ninja-test
+	url = https://github.com/vsrinivas/ninja-test
