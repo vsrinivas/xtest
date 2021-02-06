@@ -80,6 +80,10 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ft) {
 		nBytes += sb->st_size;
 
 		uint32_t s = fnvpath(path, sb);
+		if (s == 0) {
+			printf("==> %s,  err %x\n", path, s);
+			break;
+		}
 		printf("==> %s, %x\n", path, s);
 
 		if (ref_hashes.find(s) != ref_hashes.end()) {
