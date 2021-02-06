@@ -98,6 +98,10 @@ __tsan_atomic8 __tsan_atomic8_load(const volatile __tsan_atomic8 *addr, __tsan_m
 		vec = &g_vectortab[g_mycpu];
 		loc = find((unsigned long) addr);
 		if (loc->seq) {
+			// TODO: We might need to update our entire vector
+			// with the max of our own value for each remote cpu
+			// and the remote cpu's? otherwise we can't track
+			// three-cpu sequences?;
 			vec->seqno[loc->cpu] = loc->seq;
 		}
 		spin_unlock(&g_location_lock);
