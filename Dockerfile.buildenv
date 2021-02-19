@@ -1,6 +1,6 @@
 FROM debian
 
 RUN apt-get update && \
-	apt-get install -y build-essential libleveldb-dev libssl-dev libsnappy-dev
+	apt-get install -y build-essential git libleveldb-dev libssl-dev libsnappy-dev
 
 ENTRYPOINT ["sh"]
