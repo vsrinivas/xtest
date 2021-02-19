@@ -30,7 +30,7 @@ libninja-test.a:
 fnv1a.o: fnv1a.c
 
 fnv1a_test: fnv1a_test.o fnv1a.o libninja-test.a
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o fnv1a_test $^
+	$(CXX) $(LDFLAGS) -o fnv1a_test $^
 
 ftwdb2: ftwdb2.o $(MD5)
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
