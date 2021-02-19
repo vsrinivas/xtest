@@ -8,4 +8,4 @@ steps:
 - name: 'buildenv'
   args: ['-c', 'make check']
 - name: 'buildenv'
-  args: ['-c', 'CXXFLAGS="-fsanitize=address" CFLAGS="-fsanitize=address" LDFLAGS="-fsanitize=address" make clean && make check']
+  args: ['-c', 'make clean && CXXFLAGS="-fsanitize=address" CFLAGS="-fsanitize=address" LDFLAGS="-fsanitize=address" make check']
