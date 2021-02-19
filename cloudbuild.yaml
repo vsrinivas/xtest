@@ -7,3 +7,5 @@ steps:
   args: ['-c', 'make']
 - name: 'buildenv'
   args: ['-c', 'make check']
+- name: 'buildenv'
+  args: ['-c', 'CXXFLAGS="-fsanitize=address" CFLAGS="-fsanitize=address" LDFLAGS="-fsanitize=address" make clean && make check']
