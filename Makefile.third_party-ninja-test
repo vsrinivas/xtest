@@ -1,0 +1,11 @@
+CXXFLAGS = -std=c++11 -Ithird_party/ninja-test
+
+NINJA_TEST_OBJ=\
+	    third_party/ninja-test/src/ninja_test.o
+
+libninja-test.a: $(NINJA_TEST_OBJ)
+	$(AR) qc libninja-test.a $(NINJA_TEST_OBJ)
+
+.PHONY: clean
+clean:
+	rm -f $(NINJA_TEST_OBJ) libninja-test.a

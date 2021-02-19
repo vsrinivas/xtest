@@ -1,3 +1,5 @@
+#include "fnv1a.h"
+
 #include <stdint.h>
 #include <sys/types.h>
 

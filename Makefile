@@ -22,10 +22,15 @@ CMDS=\
 .PHONY: default
 default: $(CMDS)
 
-.PHONY: check
-
 libleveldb.a:
 	$(MAKE) -f Makefile.third_party-leveldb libleveldb.a
+libninja-test.a:
+	$(MAKE) -f Makefile.third_party-ninja-test libninja-test.a
+
+fnv1a.o: fnv1a.c
+
+fnv1a_test: fnv1a_test.o fnv1a.o libninja-test.a
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o fnv1a_test $^
 
 ftwdb2: ftwdb2.o $(MD5)
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
@@ -49,9 +54,14 @@ oldftwdb:
 olddumpdb:
 	$(CC) $(LDFLAGS) -o $@ dumpdb.c
 
+.PHONY: check
+check: fnv1a_test
+	./fnv1a_test
+
 .PHONY: clean
 clean:
 	$(MAKE) -f Makefile.third_party-leveldb clean
+	$(MAKE) -f Makefile.third_party-ninja-test clean
 	rm -f $(UTIL) $(CMDS) ftwdb2.o transactor.o pwc.o oldftwdb olddumpdb
 	rm -f \
 		bdb_to_leveldb \
@@ -68,4 +78,6 @@ clean:
 		memback \
 		roundup_test \
 		sampzero \
-		zerorun
+		zerorun \
+		fnv1a_test \
+		fnv1a.o
