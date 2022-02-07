@@ -1,6 +1,7 @@
 #include <sys/queue.h>
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
@@ -15,9 +16,10 @@
 static const int sched_max_proc = SCHED_WORKQUEUES;
 
 struct workqueue_item {
-	void				(*wi_cb)(void *, struct barrier *);
+	void				(*wi_cb)(void *, struct barrier *, uint64_t);
 	void				*wi_priv;
 	struct barrier			*wi_barrier;
+	uint64_t			wi_key;
 	TAILQ_ENTRY(workqueue_item)	wi_entries;
 };
 
@@ -38,7 +40,7 @@ static struct workqueue workqueues[SCHED_WORKQUEUES];
 static int nproc = 0;
 
 static void process_workqueue_item(struct workqueue_item *wi) {
-	wi->wi_cb(wi->wi_priv, wi->wi_barrier);
+	wi->wi_cb(wi->wi_priv, wi->wi_barrier, wi->wi_key);
 	if (wi->wi_barrier)
 		bdec(wi->wi_barrier);
 	free(wi);
@@ -70,11 +72,15 @@ static int process_workqueue(struct workqueue *wq, int num) {
 	return (i);
 }
 
-static struct workqueue *selqueue(void) {
+static struct workqueue *selqueue(uint64_t key) {
 	struct workqueue *wq;
 	static int rover = 0;
 
-	wq = &workqueues[rover++ % nproc];
+	if (key == 0) {
+		wq = &workqueues[rover++ % nproc];
+	} else {
+		wq = &workqueues[key % nproc];
+	}
 
 	return (wq);
 }
@@ -85,7 +91,7 @@ static int add_workqueue_item(struct workqueue_item *wi) {
 	if (wi->wi_barrier)
 		binc(wi->wi_barrier);
 
-	wq = selqueue();
+	wq = selqueue(wi->wi_key);
 	pthread_mutex_lock(&wq->wq_mtx);
 
 	TAILQ_INSERT_TAIL(&wq->wq_entries, wi, wi_entries);
@@ -174,8 +180,8 @@ static void workqueue_init(void) {
 }
 
 int
-workqueue(void (*fn)(void *priv, struct barrier *b), void *priv,
-	  struct barrier *b)
+workqueue(void (*fn)(void *priv, struct barrier *b, uint64_t), void *priv,
+	  struct barrier *b, uint64_t key)
 {
 	struct workqueue_item *it;
 	int i;
@@ -186,6 +192,7 @@ workqueue(void (*fn)(void *priv, struct barrier *b), void *priv,
 	it->wi_cb = fn;
 	it->wi_priv = priv;
 	it->wi_barrier = b;
+	it->wi_key = key;
 	i = add_workqueue_item(it);
 	if (i == -1)
 		free(it);

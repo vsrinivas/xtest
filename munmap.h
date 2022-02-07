@@ -1,10 +1,11 @@
-#include "worker.h"
 #include <utility>
 #include <assert.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <queue>
 #include <sys/mman.h>
+
+#include "workqueue.h"
 
 class MUnmap {
  public:
@@ -80,6 +81,4 @@ class MUnmap {
   int nCoalesced_ = 0;
 
   std::queue<std::pair<char*, size_t>> to_munmap_;
-
-  Worker worker_;
 };
