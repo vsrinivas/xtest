@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <atomic>
 #include <unordered_set>
-#include "barrier.h"
+#include "workqueue.h"
 #include "pwq.h"
 #include "md5.h"
 #include "cp.h"
@@ -37,7 +37,7 @@ static std::atomic<uint64_t> nDuplicate;
 static std::atomic<uint64_t> nCR2Err;
 static std::atomic<uint64_t> nJPGErr;
 static std::atomic<uint64_t> Seq;
-static Barrier bar_;
+static struct barrier bar_;
 
 // Pipeline:
 // 	1. md5								x
@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 	src = argv[1];
 	dst = argv[2];
 	int rc = ftw(src, processfile, 100);
-	bar_.Wait();
+	bwait(&bar_);
 
 	printf("%lu files, %lu unique, %lu duplicate\n", nFiles.load(), nUnique.load(), nDuplicate.load());
 	printf("%lu nCR2Err %lu nJPGErr \n", nCR2Err.load(), nJPGErr.load());

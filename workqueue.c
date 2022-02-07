@@ -60,17 +60,21 @@ void bwait(struct barrier *b) {
         pthread_mutex_unlock(&b->b_mtx);
 }
 
-static void binc(struct barrier *b) {
+void binc(struct barrier *b) {
         pthread_mutex_lock(&b->b_mtx);
         b->b_count++;
         pthread_mutex_unlock(&b->b_mtx);
 }
 
-static void bdec(struct barrier *b) {
+int bdec(struct barrier *b) {
+	int ret = 0;
         pthread_mutex_lock(&b->b_mtx);
-        if (--b->b_count == 0)
+        if (--b->b_count == 0) {
+		ret = b->b_count;
                 pthread_cond_signal(&b->b_cv);
+	}
 	pthread_mutex_unlock(&b->b_mtx);
+	return ret;
 }
 
 static void process_workqueue_item(struct workqueue_item *wi) {

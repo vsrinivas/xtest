@@ -12,7 +12,7 @@
 #include <vector>
 #include <unordered_set>
 #include <ftw.h>
-#include "barrier.h"
+#include "workqueue.h"
 #include "md5.h"
 #include "pwq.h"
 
@@ -50,7 +50,7 @@ static void setup_ref_db() {
 
 
 /* ********************************************** */
-static Barrier ref_barrier;
+static struct barrier ref_barrier;
 static pthread_mutex_t ref_lock;
 static std::unordered_set<char*, Hash, Equal> ref_set;
 static long ref_nFiles;
@@ -109,7 +109,7 @@ int process_ref_dir(const char *fpath, const struct stat *sb, int typeflag) {
 
 static std::atomic<int> nRecords;
 static std::atomic<int> nMisses;
-static Barrier candidate_barrier;
+static struct barrier candidate_barrier;
 
 int process_candidate_dir(const char *fpath, const struct stat *sb, int typeflag) {
 	if (typeflag != FTW_F)
@@ -150,7 +150,7 @@ int main(int argc, char *argv[])
 		setup_ref_db();
 	
 	ftw(ref_dir, process_ref_dir, 100);
-	ref_barrier.Wait();
+	bwait(&ref_barrier);
 
 	printf("ref_nFiles %lu\n", ref_nFiles);
 	printf("ref_nDuplicate %lu\n", ref_nDuplicate);
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
 			ftw(candidate_path, process_candidate_dir, 100);
 		}, &candidate_barrier);
 	}
-	candidate_barrier.Wait();
+	bwait(&candidate_barrier);
 
 	printf("misses: %d\n", nMisses.load());
 	printf("nRecords: %d\n", nRecords.load());

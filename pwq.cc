@@ -5,14 +5,14 @@
 #include <functional>
 #include <queue>
 
-#include "barrier.h"
+#include "workqueue.h"
 #include "pwq.h"
 
 #define MAX_NUMPROC (1)
 
 struct Workitem {
   std::function<void()> callback;
-  Barrier* barrier;
+  struct barrier* b;
 };
 
 static pthread_once_t once = PTHREAD_ONCE_INIT;
@@ -32,7 +32,7 @@ static void* worker(void* arg) {
       items.pop();
       pthread_mutex_unlock(&mtx);
       it.callback();
-      it.barrier->Dec();
+      bdec(it.b);
       pthread_mutex_lock(&mtx);
     }
 
@@ -64,12 +64,12 @@ static void init() {
   }
 }
 
-void PWQ::Run(std::function<void()> fn, Barrier* barrier) {
+void PWQ::Run(std::function<void()> fn, struct barrier* b) {
   pthread_once(&once, init);
-  barrier->Inc();
+  binc(b);
 
   pthread_mutex_lock(&mtx);
-  items.push({fn, barrier});
+  items.push({fn, b});
   pthread_cond_signal(&cv);
   pthread_mutex_unlock(&mtx);
 }
