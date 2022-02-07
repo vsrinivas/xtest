@@ -2,10 +2,14 @@
 #define _PWQ_H_
 
 #include <functional>
+#include <future>
 #include "workqueue.h"
 
 class PWQ {
  public:
+  // Execute |fn| in a process-wide threadpool.
+  static void Run(std::function<void()> fn);
+
   // Execute |fn| in a process-wide threadpool.
   // |barrier| allows waiting for |fn| to be executed.
   // |key| is passed to each callback; all callbacks with the same key run on the same thread
