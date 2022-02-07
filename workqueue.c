@@ -1,5 +1,3 @@
-/* XXX(vsrinivas): Lock contention on binc/bdec/bwait are likely bad! */
-
 #include <sys/queue.h>
 
 #include <stdio.h>
@@ -38,30 +36,6 @@ struct workqueue {
 static pthread_once_t workqueue_once = PTHREAD_ONCE_INIT;
 static struct workqueue workqueues[SCHED_WORKQUEUES];
 static int nproc = 0;
-
-void bwait(struct barrier *b) {
-	pthread_mutex_lock(&b->b_mtx);
-	while (b->b_count > 0)
-		pthread_cond_wait(&b->b_cv, &b->b_mtx);
-        pthread_mutex_unlock(&b->b_mtx);
-}
-
-void binc(struct barrier *b) {
-        pthread_mutex_lock(&b->b_mtx);
-        b->b_count++;
-        pthread_mutex_unlock(&b->b_mtx);
-}
-
-int bdec(struct barrier *b) {
-	int ret = 0;
-        pthread_mutex_lock(&b->b_mtx);
-        if (--b->b_count == 0) {
-		ret = b->b_count;
-                pthread_cond_signal(&b->b_cv);
-	}
-	pthread_mutex_unlock(&b->b_mtx);
-	return ret;
-}
 
 static void process_workqueue_item(struct workqueue_item *wi) {
 	wi->wi_cb(wi->wi_priv, wi->wi_barrier);
