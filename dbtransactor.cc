@@ -9,13 +9,12 @@
 #include <string.h>
 #include <unordered_set>
 #include <leveldb/db.h>
-#include "array_sset.h"
 
 /* dbtransactor [ref] [src] */
 // Checks that every hash in |src| is in |ref|
 int main(int argc, char* argv[])
 {
-	array_sset<std::string> ref_hashes;
+	std::unordered_set<std::string> ref_hashes;
 	int i;
 	int nRefFiles = 0;
 	int nDuplicates = 0;
@@ -47,7 +46,7 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		bool unique = ref_hashes.insert(it->value().ToString());
+		bool unique = ref_hashes.insert(it->value().ToString()).second;
 		if (!unique)
 			++nDuplicates;
 		++nRefFiles;
