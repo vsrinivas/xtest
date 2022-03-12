@@ -52,6 +52,8 @@ void randomize(std::vector<uint8_t>& v) {
   }
 }
 
+extern "C" uint32_t murmur3_32(const uint8_t *key, size_t len, uint32_t seed);
+
 // A simple tester for CPU and memory subsystems. 
 //
 // For each cpu
@@ -75,8 +77,9 @@ void randomize(std::vector<uint8_t>& v) {
 // c++ -o cpu_check cpu_check.cc fnv1a.cc -DN=<size> -DNCPU=<ncpu>
 int main(int argc, char *argv[]) {
   std::vector<uint8_t> data_src, data_dst;
-  uint32_t jhash0;
-  uint64_t hash0;
+  volatile uint32_t jhash0;
+  volatile uint64_t hash0;
+  volatile uint32_t mhash0;
   int loops = 0;
   int cpus = NCPU;
   size_t size = N;
@@ -92,15 +95,18 @@ int main(int argc, char *argv[]) {
     printf("Randomize buffer... (source cpu %d)\n", rotor);
 #endif
     randomize(data_src);
+#if 0
 #ifdef __x86_64__
     for (uint8_t* p = data_src.data(); p < data_src.data() + data_src.size(); p += 64) {
       clflush(p);
     }
 #endif
+#endif
     jhash0 = jenkins_one_at_a_time_hash((const uint8_t *) data_src.data(), data_src.size());
     hash0 = FNV1A_64((const char *) data_src.data(), data_src.size());
+    mhash0 = murmur3_32((const uint8_t*) data_src.data(), data_src.size(), 0x1);
 #ifdef DEBUG
-    printf("Source (cpu %d) jhash %x hash %lx...\n", rotor, jhash0, hash0);
+    printf("Source (cpu %d) jhash %x hash %lx mhash %x...\n", rotor, jhash0, hash0, mhash0);
 #endif
     memcpy(data_dst.data(), data_src.data(), data_src.size());
 
@@ -108,8 +114,9 @@ int main(int argc, char *argv[]) {
       move(i);
       uint32_t jhash = jenkins_one_at_a_time_hash(data_dst.data(), data_dst.size());
       uint64_t hash = FNV1A_64((const char *) data_dst.data(), data_dst.size());
+      uint32_t mhash = murmur3_32((const uint8_t *) data_dst.data(), data_dst.size(), 0x1);
 #ifdef DEBUG
-      printf("Validate buffer (source cpu %d target cpu %d (jhash %x hash %lx)...\n", rotor, i, jhash, hash);
+      printf("Validate buffer (source cpu %d target cpu %d (jhash %x hash %lx mhash %x)...\n", rotor, i, jhash, hash, mhash);
 #endif
       if (jhash0 != jhash) {
 	abort();
@@ -117,12 +124,16 @@ int main(int argc, char *argv[]) {
       if (hash0 != hash) {
         abort();
       }
+      if (mhash0 != mhash) {
+	abort();
+      }
     }
     move(rotor);
 #ifdef DEBUG
     printf("Clear buffers (source cpu %d)...\n", rotor);
 #endif
     // Back on the source CPU; check the hashes again.
+#if 0
 #ifdef __x86_64__
     for (uint8_t* p = data_src.data(); p < data_src.data() + data_src.size(); p += 64) {
       clflush(p);
@@ -130,6 +141,7 @@ int main(int argc, char *argv[]) {
     for (uint8_t* p = data_dst.data(); p < data_dst.data() + data_dst.size(); p += 64) {
       clflush(p);
     }
+#endif
 #endif
     uint32_t jhash = jenkins_one_at_a_time_hash(data_src.data(), data_src.size());
     if (jhash0 != jhash) {
