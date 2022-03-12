@@ -6,6 +6,8 @@
 #include <string.h>
 #include "fnv1a.h"
 
+#include "checkbuf.inc"
+
 #ifdef __x86_64__
 void clflush(const uint8_t *addr) {
   asm __volatile__ (
@@ -43,7 +45,7 @@ void move(int cpu) {
 }
 
 void randomize(std::vector<uint8_t>& v) {
-  static std::default_random_engine             generator;
+  static std::mt19937             generator;
   static std::uniform_int_distribution<uint8_t> distribution(0, 0xff);
   static auto                                   dice = std::bind(distribution, generator);
 
@@ -105,6 +107,12 @@ int main(int argc, char *argv[]) {
     jhash0 = jenkins_one_at_a_time_hash((const uint8_t *) data_src.data(), data_src.size());
     hash0 = FNV1A_64((const char *) data_src.data(), data_src.size());
     mhash0 = murmur3_32((const uint8_t*) data_src.data(), data_src.size(), 0x1);
+    if (jcheckbuf.count(loops)) {
+      if (jcheckbuf[loops] != jhash0) {
+	      printf("WARNING: jenkins hash at loop %d didn't match precomputed table, %x exp %x\n", loops, jhash0, jcheckbuf[loops]);
+	      abort();
+      }
+    }
 #ifdef DEBUG
     printf("Source (cpu %d) jhash %x hash %lx mhash %x...\n", rotor, jhash0, hash0, mhash0);
 #endif

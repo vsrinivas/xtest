@@ -46,6 +46,8 @@ bdb_to_leveldb:
 
 # 4 CPUs, 16 GB source/dst buffer.
 cpu-check.exe: fnv1a.o
+	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=16179869184UL
+	./checkbuf > checkbuf.inc
 	$(CXX) -o cpu-check.exe cpu-check.cc fnv1a.c murmur3.c  -DNCPU=4 -DN=16179869184UL  -O2 -DDEBUG -g
 
 # Parallel wordcount; RC 2018.
