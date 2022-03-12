@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <vector>
-#include <random>
-#include <functional>
+#include <unordered_map>
 #include <sched.h>
 #include <string.h>
 #include "fnv1a.h"
@@ -44,13 +43,9 @@ void move(int cpu) {
     abort();
 }
 
-void randomize(std::vector<uint8_t>& v) {
-  static std::mt19937             generator;
-  static std::uniform_int_distribution<uint8_t> distribution(0, 0xff);
-  static auto                                   dice = std::bind(distribution, generator);
-
+void randomize(std::vector<uint8_t>& v, int ref) {
   for (size_t i = 0; i < v.size(); ++i) {
-    v[i] = dice();
+    v[i] = 0xAA + (i & 0xFF) + ref;
   }
 }
 
@@ -96,7 +91,7 @@ int main(int argc, char *argv[]) {
 #ifdef DEBUG
     printf("Randomize buffer... (source cpu %d)\n", rotor);
 #endif
-    randomize(data_src);
+    randomize(data_src, loops);
 #if 0
 #ifdef __x86_64__
     for (uint8_t* p = data_src.data(); p < data_src.data() + data_src.size(); p += 64) {
