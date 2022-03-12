@@ -44,6 +44,10 @@ leveldb_to_bdb:
 bdb_to_leveldb:
 	$(CXX) -o bdb_to_leveldb bdb_to_leveldb.cc -lleveldb -lsnappy -ldb
 
+# 4 CPUs, 4 GB source/dst buffer.
+cpu-check.exe: fnv1a.o
+	$(CXX) -o cpu-check.exe cpu-check.cc fnv1a.c  -DNCPU=4 -DN=4094967200  -O2 -DDEBUG -g
+
 # Parallel wordcount; RC 2018.
 pwc:	pwc.o
 	$(CC) $(LDFLAGS) -o $@ $^ -pthread
