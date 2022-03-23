@@ -46,14 +46,19 @@ bdb_to_leveldb:
 
 # 4 CPUs, 16 GB source/dst buffer.
 cpu-check.exe: fnv1a.o
-#	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=16179869184UL
-#	./checkbuf > checkbuf.inc
-	$(CXX) -o cpu-check.exe cpu-check.cc fnv1a.c murmur3.c  -DNCPU=4 -DN=16179869184UL  -O2 -DDEBUG -g
+	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=16179869184UL -march=native
+	./checkbuf > checkbuf.inc
+	$(CXX) -o cpu-check.exe cpu-check.cc fnv1a.c murmur3.c  -DNCPU=4 -DN=16179869184UL  -O2 -DDEBUG -g -march=native
+
+cpu-check-medium.exe: fnv1a.o
+	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=4294967296UL -march=native
+	./checkbuf > checkbuf.inc
+	$(CXX) -o cpu-check-medium.exe cpu-check.cc fnv1a.c murmur3.c  -DNCPU=4 -DN=4294967296UL  -O2 -DDEBUG -g -march=native
 
 cpu-check-small.exe: fnv1a.o
-	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=1048576UL
+	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=1048576UL -march=native
 	./checkbuf > checkbuf.inc
-	$(CXX) -o cpu-check-small.exe cpu-check.cc fnv1a.c murmur3.c  -DNCPU=4 -DN=1048576UL  -O2 -DDEBUG -g
+	$(CXX) -o cpu-check-small.exe cpu-check.cc fnv1a.c murmur3.c  -DNCPU=4 -DN=1048576UL  -O2 -DDEBUG -g -march=native
 
 # Parallel wordcount; RC 2018.
 pwc:	pwc.o
