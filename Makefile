@@ -50,6 +50,11 @@ cpu-check.exe: fnv1a.o
 #	./checkbuf > checkbuf.inc
 	$(CXX) -o cpu-check.exe cpu-check.cc fnv1a.c murmur3.c  -DNCPU=4 -DN=16179869184UL  -O2 -DDEBUG -g
 
+cpu-check-small.exe: fnv1a.o
+	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=1048576UL
+	./checkbuf > checkbuf.inc
+	$(CXX) -o cpu-check-small.exe cpu-check.cc fnv1a.c murmur3.c  -DNCPU=4 -DN=1048576UL  -O2 -DDEBUG -g
+
 # Parallel wordcount; RC 2018.
 pwc:	pwc.o
 	$(CC) $(LDFLAGS) -o $@ $^ -pthread

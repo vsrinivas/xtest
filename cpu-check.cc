@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <sched.h>
 #include <string.h>
+#include <limits.h>
 #include "fnv1a.h"
 
 #include "checkbuf.inc"
@@ -43,8 +44,9 @@ extern "C" uint32_t murmur3_32(const uint8_t *key, size_t len, uint32_t seed);
 //
 // For each cpu
 // 	fill a random buffer;
-// 	hash it ( both fnv1a and jenkins one-at-a-time hashes )
-//	make a copy of it into the destination buffer
+// 	hash it ( both fnv1a, jenkins, murmur one-at-a-time hashes )
+// 	compare the jenkins hash against a precomputed hash (if available)
+//	make a copy of it into the destination buffer (misaligned if possible)
 //	for each cpu:
 //		hash the copy (fnv1a, jenkins, murmur)
 //		compare the hash to the originally computed hash;
@@ -71,10 +73,16 @@ int main(int argc, char *argv[]) {
   int rotor = 0;
   int misalign = 0;
   int MAX_MISALIGN = 64;
+  int max_loops;
+
+  if (argc > 1)
+    max_loops = atoi(argv[1]);
+  else
+    max_loops = INT_MAX;
 
   data_src.resize(N);
   data_dst.resize(N + MAX_MISALIGN);
-  for (;; loops++) {
+  for (loops = 0; loops < max_loops; loops++) {
     uint8_t* const dst = data_dst.data() + misalign;
     size_t dst_size = N;
     printf("loop %d ==>\n", loops);
