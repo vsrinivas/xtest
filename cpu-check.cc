@@ -7,18 +7,6 @@
 
 #include "checkbuf.inc"
 
-#ifdef __x86_64__
-void clflush(const uint8_t *addr) {
-  asm __volatile__ (
-     "clflush 0(%0)\n"
-     "sfence\n"
-     :
-     : "r" (addr)
-     : "memory"
-  );
-}
-#endif
-
 uint32_t jenkins_one_at_a_time_hash(const uint8_t* key, size_t length) {
   size_t i = 0;
   uint32_t hash = 0;
@@ -55,11 +43,10 @@ extern "C" uint32_t murmur3_32(const uint8_t *key, size_t len, uint32_t seed);
 //
 // For each cpu
 // 	fill a random buffer;
-// 	evict it from cache (clflush)
-// 	hash it ( both fnv1a and jenkins one-at-a-time hashes)
+// 	hash it ( both fnv1a and jenkins one-at-a-time hashes )
 //	make a copy of it into the destination buffer
 //	for each cpu:
-//		hash the copy (fnv1a, jenkins)
+//		hash the copy (fnv1a, jenkins, murmur)
 //		compare the hash to the originally computed hash;
 //	move back to the source cpu
 //	re-hash the source and destination buffers
@@ -82,23 +69,20 @@ int main(int argc, char *argv[]) {
   size_t size = N;
   int i;
   int rotor = 0;
+  int misalign = 0;
+  int MAX_MISALIGN = 64;
 
   data_src.resize(N);
-  data_dst.resize(N);
+  data_dst.resize(N + MAX_MISALIGN);
   for (;; loops++) {
+    uint8_t* const dst = data_dst.data() + misalign;
+    size_t dst_size = N;
     printf("loop %d ==>\n", loops);
     move(rotor);
 #ifdef DEBUG
     printf("Randomize buffer... (source cpu %d)\n", rotor);
 #endif
     randomize(data_src, loops);
-#if 0
-#ifdef __x86_64__
-    for (uint8_t* p = data_src.data(); p < data_src.data() + data_src.size(); p += 64) {
-      clflush(p);
-    }
-#endif
-#endif
     jhash0 = jenkins_one_at_a_time_hash((const uint8_t *) data_src.data(), data_src.size());
     hash0 = FNV1A_64((const char *) data_src.data(), data_src.size());
     mhash0 = murmur3_32((const uint8_t*) data_src.data(), data_src.size(), 0x1);
@@ -111,13 +95,13 @@ int main(int argc, char *argv[]) {
 #ifdef DEBUG
     printf("Source (cpu %d) jhash %x hash %lx mhash %x...\n", rotor, jhash0, hash0, mhash0);
 #endif
-    memcpy(data_dst.data(), data_src.data(), data_src.size());
+    memcpy(dst, data_src.data(), data_src.size());
 
     for (int i = 0; i < NCPU; i++) {
       move(i);
-      uint32_t jhash = jenkins_one_at_a_time_hash(data_dst.data(), data_dst.size());
-      uint64_t hash = FNV1A_64((const char *) data_dst.data(), data_dst.size());
-      uint32_t mhash = murmur3_32((const uint8_t *) data_dst.data(), data_dst.size(), 0x1);
+      uint32_t jhash = jenkins_one_at_a_time_hash(dst, dst_size);
+      uint64_t hash = FNV1A_64((const char *) dst, dst_size);
+      uint32_t mhash = murmur3_32((const uint8_t *) dst, dst_size, 0x1);
 #ifdef DEBUG
       printf("Validate buffer (source cpu %d target cpu %d (jhash %x hash %lx mhash %x)...\n", rotor, i, jhash, hash, mhash);
 #endif
@@ -136,25 +120,15 @@ int main(int argc, char *argv[]) {
     printf("Clear buffers (source cpu %d)...\n", rotor);
 #endif
     // Back on the source CPU; check the hashes again.
-#if 0
-#ifdef __x86_64__
-    for (uint8_t* p = data_src.data(); p < data_src.data() + data_src.size(); p += 64) {
-      clflush(p);
-    }
-    for (uint8_t* p = data_dst.data(); p < data_dst.data() + data_dst.size(); p += 64) {
-      clflush(p);
-    }
-#endif
-#endif
     uint32_t jhash = jenkins_one_at_a_time_hash(data_src.data(), data_src.size());
     if (jhash0 != jhash) {
       abort();
     }
-    jhash = jenkins_one_at_a_time_hash(data_dst.data(), data_dst.size());
+    jhash = jenkins_one_at_a_time_hash(dst, dst_size);
     if (jhash0 != jhash) {
       abort();
     }
-    uint64_t hash = FNV1A_64((const char *) data_dst.data(), data_dst.size());
+    uint64_t hash = FNV1A_64((const char *) dst, dst_size);
     if (hash0 != hash) {
       abort();
     }
@@ -168,4 +142,7 @@ int main(int argc, char *argv[]) {
     if (rotor == NCPU)
       rotor = 0;
   }
+  misalign++;
+  if (misalign == MAX_MISALIGN)
+    misalign = 0;
 }

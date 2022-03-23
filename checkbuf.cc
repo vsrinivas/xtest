@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "checkbuf [%d/%d]\n", i, X); 
     randomize(data_src, i);
     uint32_t jhash = jenkins_one_at_a_time_hash(data_src.data(), data_src.size());
-    printf("{%d, 0x%x}\n", i, jhash);
+    printf("{%d, 0x%x},\n", i, jhash);
   }
   printf("};\n");
 }
