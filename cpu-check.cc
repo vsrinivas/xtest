@@ -1,12 +1,15 @@
 #include <stdint.h>
 #include <vector>
 #include <unordered_map>
+#include <thread>
 #include <sched.h>
 #include <string.h>
 #include <limits.h>
 #include "fnv1a.h"
 
 #include "checkbuf.inc"
+
+static int do_checkbuf = 0;
 
 uint32_t jenkins_one_at_a_time_hash(const uint8_t* key, size_t length) {
   size_t i = 0;
@@ -60,25 +63,38 @@ extern "C" uint32_t murmur3_32(const uint8_t *key, size_t len, uint32_t seed);
 // build that code on a target environment where i had memtest86 report bad
 // memory, so I wanted to test it via other mechanisms.
 //
-// c++ -o cpu_check cpu_check.cc fnv1a.cc -DN=<size> -DNCPU=<ncpu>
+// c++ -o cpu_check cpu_check.cc fnv1a.cc -DN=<size>
+// ./cpu_check <N> <max_loops>
 int main(int argc, char *argv[]) {
   std::vector<uint8_t> data_src, data_dst;
   volatile uint32_t jhash0;
   volatile uint64_t hash0;
   volatile uint32_t mhash0;
   int loops = 0;
-  int cpus = NCPU;
-  size_t size = N;
+  int cpus;
+  size_t size;
   int i;
   int rotor = 0;
   int misalign = 0;
   int MAX_MISALIGN = 64;
   int max_loops;
 
+  cpus = std::thread::hardware_concurrency();
+
   if (argc > 1)
-    max_loops = atoi(argv[1]);
+    size = atol(argv[1]);
+  else
+    size = N;
+
+  if (argc > 2)
+    max_loops = atoi(argv[2]);
   else
     max_loops = INT_MAX;
+
+  if (size == N) {
+    printf("do_checkbuf=1, Jenkins hashes will be checked.\n");
+    do_checkbuf = 1;
+  }
 
   data_src.resize(N);
   data_dst.resize(N + MAX_MISALIGN);
@@ -94,7 +110,7 @@ int main(int argc, char *argv[]) {
     jhash0 = jenkins_one_at_a_time_hash((const uint8_t *) data_src.data(), data_src.size());
     hash0 = FNV1A_64((const char *) data_src.data(), data_src.size());
     mhash0 = murmur3_32((const uint8_t*) data_src.data(), data_src.size(), 0x1);
-    if (jcheckbuf.count(loops)) {
+    if (do_checkbuf && jcheckbuf.count(loops)) {
       if (jcheckbuf[loops] != jhash0) {
 	      printf("WARNING: jenkins hash at loop %d didn't match precomputed table, %x exp %x\n", loops, jhash0, jcheckbuf[loops]);
 	      abort();
@@ -105,7 +121,7 @@ int main(int argc, char *argv[]) {
 #endif
     memcpy(dst, data_src.data(), data_src.size());
 
-    for (int i = 0; i < NCPU; i++) {
+    for (int i = 0; i < cpus; i++) {
       move(i);
       uint32_t jhash = jenkins_one_at_a_time_hash(dst, dst_size);
       uint64_t hash = FNV1A_64((const char *) dst, dst_size);
@@ -147,7 +163,7 @@ int main(int argc, char *argv[]) {
     memset(data_src.data(), 0xAA, data_src.size());
     memset(data_dst.data(), 0xAA, data_dst.size());
     rotor++;
-    if (rotor == NCPU)
+    if (rotor == cpus)
       rotor = 0;
   }
   misalign++;
