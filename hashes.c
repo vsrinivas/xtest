@@ -4,6 +4,7 @@
 #include <nmmintrin.h>
 
 
+#ifdef __SSE4_2__
 uint32_t crc32c(unsigned char *buf, size_t len) {
 	uint32_t l = 0;
 	for (int i = 0; i < len; i++) {
@@ -12,6 +13,7 @@ uint32_t crc32c(unsigned char *buf, size_t len) {
 			asm volatile("" : : : "memory");
 	return l;
 }
+#endif
 
 
 
@@ -52,7 +54,7 @@ uint64_t fasthash64(const void *buf, size_t len, uint64_t seed)
 		h *= m;
 	}
 
-			asm volatile("" : : : "memory");
+	asm volatile("" : : : "memory");
 	return mix(h);
 } 
 
@@ -79,7 +81,7 @@ uint32_t FNV32(const char *s, size_t len) {             // FNV1a
                 hash = hash ^ (s[i]);
                 hash = hash * FNV_PRIME_32;
         }
-			asm volatile("" : : : "memory");
+	asm volatile("" : : : "memory");
         return hash;
 }
 
@@ -94,7 +96,7 @@ uint32_t jenkins_one_at_a_time_hash(const uint8_t* key, size_t length) {
   hash += hash << 3;
   hash ^= hash >> 11;
   hash += hash << 15;
-			asm volatile("" : : : "memory");
+  asm volatile("" : : : "memory");
   return hash;
 }
 
@@ -110,6 +112,7 @@ float rate(uint64_t bytes, uint64_t usec) {
 }
 
 
+#ifdef TEST
 int main(int argc, char *argv[]) {
 	char *buf;
 
@@ -158,8 +161,22 @@ int main(int argc, char *argv[]) {
                 printf("%f GB/s \n", rate(iters * sizes[i], after-before));
 
 
+                // fasthash64
+                                // jenkins
+                before = xtime();
+                for (j = 0; j < iters; j++) {
+                        fasthash64(buf, sizes[i], 0);
+                        asm volatile("" : : : "memory");
+                }
+                after = xtime();
+                printf("fasthash64: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
+                printf("%f GB/s \n", rate(iters * sizes[i], after-before));
+
+
+
                 // fasthash32
                                 // jenkins
+#ifdef __SSE4_2__
                 before = xtime();
                 for (j = 0; j < iters; j++) {
                         crc32c(buf, sizes[i]);
@@ -168,9 +185,10 @@ int main(int argc, char *argv[]) {
                 after = xtime();
                 printf("crc32: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
                 printf("%f GB/s \n", rate(iters * sizes[i], after-before));
-
+#endif
 
 		free(buf);
 	}
 
 }
+#endif

@@ -11,6 +11,14 @@
 
 static int do_checkbuf = 0;
 
+#ifdef __x86_64__
+static void
+rep_movsb(unsigned char* dst, unsigned char const* src, size_t n) {
+  __asm__ __volatile__("rep movsb" : "+D"(dst), "+S"(src), "+c"(n)
+                       : : "memory");
+}
+#endif
+
 uint32_t jenkins_one_at_a_time_hash(const uint8_t* key, size_t length) {
   size_t i = 0;
   uint32_t hash = 0;
@@ -119,7 +127,15 @@ int main(int argc, char *argv[]) {
 #ifdef DEBUG
     printf("Source (cpu %d) jhash %x hash %lx mhash %x...\n", rotor, jhash0, hash0, mhash0);
 #endif
+#ifdef __x86_64__
+    if (loops & 1) {
+      rep_movsb(dst, data_src.data(), data_src.size());
+    } else {
+      memcpy(dst, data_src.data(), data_src.size());
+    }
+#else
     memcpy(dst, data_src.data(), data_src.size());
+#endif
 
     for (int i = 0; i < cpus; i++) {
       move(i);
