@@ -24,7 +24,7 @@ char *xhash(const char *path) {
         char *q;
         int fd;
         struct stat sb;
-	uint32_t qq;
+	uint64_t qq;
 
         fd = open(path, O_RDONLY);
         if (!fd)
@@ -38,11 +38,11 @@ char *xhash(const char *path) {
                 return NULL;
         }
 
-        qq = FNV1A_32((const char *) p, sb.st_size);
+        qq = FNV1A_64((const char *) p, sb.st_size);
         munmap(p, sb.st_size);
-	q = (char*)malloc(9);
-	bzero(q, 9);
-	sprintf(q, "%08x", qq);
+	q = (char*)malloc(17);
+	bzero(q, 17);
+	sprintf(q, "%16llx", qq);
         close(fd);
         return q;
 }
@@ -92,7 +92,7 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 // g++ ftwdb2_fnv.cc -Ithird_party/leveldb/include -std=c++17 libleveldb.a fnv1a.c 
 
 /* ftwdb2_leveldb <path> <dbfile> */
-/* Make a LevelDB mapping every file to its FNV1a Hash (in 8-byte ascii string) */
+/* Make a LevelDB mapping every file to its FNV1a Hash (in 16-byte ascii string) */
 int main(int argc, char *argv[])
 {
 	int i;
