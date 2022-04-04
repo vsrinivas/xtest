@@ -1,8 +1,5 @@
 #include <stdint.h>
-#include <sys/time.h>
 #include <stddef.h>
-#include <nmmintrin.h>
-
 
 #ifdef __SSE4_2__
 uint32_t crc32c(unsigned char *buf, size_t len) {
@@ -10,7 +7,6 @@ uint32_t crc32c(unsigned char *buf, size_t len) {
 	for (int i = 0; i < len; i++) {
 		l = _mm_crc32_u8(l, *buf++);
 	}
-			asm volatile("" : : : "memory");
 	return l;
 }
 #endif
@@ -54,7 +50,6 @@ uint64_t fasthash64(const void *buf, size_t len, uint64_t seed)
 		h *= m;
 	}
 
-	asm volatile("" : : : "memory");
 	return mix(h);
 } 
 
@@ -67,21 +62,27 @@ uint32_t fasthash32(const void *buf, size_t len, uint32_t seed)
 	return h - (h >> 32);
 }
 
-
-
-
-
-// FNV1a (32-bit)
 #define FNV_PRIME_32 16777619
 #define FNV_OFFSET_32 2166136261U
-uint32_t FNV32(const char *s, size_t len) {             // FNV1a
+uint32_t FNV1A_32(const char *s, size_t len) {
         uint32_t hash = FNV_OFFSET_32;
         size_t i; 
         for(i = 0; i < len; i++) {
                 hash = hash ^ (s[i]);
                 hash = hash * FNV_PRIME_32;
         }
-	asm volatile("" : : : "memory");
+        return hash;
+}
+
+#define FNV_PRIME_64    (0x100000001b3ull)
+#define FNV_OFFSET_64   (0xcbf29ce484222325ull)
+uint64_t FNV1A_64(const char *s, size_t len) {
+        uint64_t hash = FNV_OFFSET_64;
+        size_t i;
+        for(i = 0; i < len; i++) {
+                hash = hash ^ (s[i]);
+                hash = hash * FNV_PRIME_64;
+        }
         return hash;
 }
 
@@ -96,99 +97,5 @@ uint32_t jenkins_one_at_a_time_hash(const uint8_t* key, size_t length) {
   hash += hash << 3;
   hash ^= hash >> 11;
   hash += hash << 15;
-  asm volatile("" : : : "memory");
   return hash;
 }
-
-uint64_t xtime(void) {
-	struct timeval t0;
-	gettimeofday(&t0, NULL);
-	return t0.tv_sec * 1000ull * 1000ull + t0.tv_usec;
-}
-
-
-float rate(uint64_t bytes, uint64_t usec) {
-	return (((((bytes * 1.0) / (usec * 1.0)) / 1024.0) / 1024.0) / 1024.0) * 1000.0 * 1000.0;
-}
-
-
-#ifdef TEST
-int main(int argc, char *argv[]) {
-	char *buf;
-
-	int sizes[] = { 1024, 4096, 16384, 65536, 262144, 1048576 };
-	unsigned long iters = 1000000ul;
-
-	int i;
-	unsigned long j;
-	float s;
-	uint64_t before, after;
-
-	for (i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
-		buf = malloc(sizes[i]);
-		memset(buf, 0, sizes[i]);
-
-		// fnv1a
-		before = xtime();
-		for (j = 0; j < iters; j++) {
-			FNV32(buf, sizes[i]);
-			asm volatile("" : : : "memory");
-		}
-		after = xtime();
-		printf("FNV1a: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
-		printf("%f GB/s \n", rate(iters * sizes[i], after-before));
-
-		// jenkins
-                before = xtime();
-                for (j = 0; j < iters; j++) {
-                        jenkins_one_at_a_time_hash(buf, sizes[i]);
-                        asm volatile("" : : : "memory");
-                }
-                after = xtime();
-                printf("jenkins_one_at_a_time_hash: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
-                printf("%f GB/s \n", rate(iters * sizes[i], after-before));
-
-
-		// fasthash32
-		                // jenkins
-                before = xtime();
-                for (j = 0; j < iters; j++) {
-                        fasthash32(buf, sizes[i], 0);
-                        asm volatile("" : : : "memory");
-                }
-                after = xtime();
-                printf("fasthash32: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
-                printf("%f GB/s \n", rate(iters * sizes[i], after-before));
-
-
-                // fasthash64
-                                // jenkins
-                before = xtime();
-                for (j = 0; j < iters; j++) {
-                        fasthash64(buf, sizes[i], 0);
-                        asm volatile("" : : : "memory");
-                }
-                after = xtime();
-                printf("fasthash64: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
-                printf("%f GB/s \n", rate(iters * sizes[i], after-before));
-
-
-
-                // fasthash32
-                                // jenkins
-#ifdef __SSE4_2__
-                before = xtime();
-                for (j = 0; j < iters; j++) {
-                        crc32c(buf, sizes[i]);
-                        asm volatile("" : : : "memory");
-                }
-                after = xtime();
-                printf("crc32: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
-                printf("%f GB/s \n", rate(iters * sizes[i], after-before));
-#endif
-
-		free(buf);
-	}
-
-}
-#endif
