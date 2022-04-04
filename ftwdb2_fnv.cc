@@ -14,7 +14,7 @@
 #include <string.h>
 
 #include <leveldb/db.h>
-#include "fnv1a.h"
+#include "hashes.h"
 
 static leveldb::DB* db;
 static int nFiles;

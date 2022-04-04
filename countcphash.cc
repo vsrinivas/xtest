@@ -21,17 +21,7 @@
 #include <deque>
 #include <unordered_set>
 
-#define FNV_PRIME_32 16777619
-#define FNV_OFFSET_32 2166136261U
-uint32_t FNV32(const char *s, size_t len) {             // FNV1a
-        uint32_t hash = FNV_OFFSET_32;
-        size_t i;
-        for(i = 0; i < len; i++) {
-                hash = hash ^ (s[i]);
-                hash = hash * FNV_PRIME_32;
-        }
-        return hash;
-} 
+#include "hashes.h"
 
 uint32_t fnvpath(const char *path, const struct stat *sb) {
         char *p;
@@ -48,7 +38,7 @@ uint32_t fnvpath(const char *path, const struct stat *sb) {
                 return 0;
         }
 
-        q = FNV32((const char *) p, sb->st_size);
+        q = FNV1A_32((const char *) p, sb->st_size);
         munmap(p, sb->st_size);
         close(fd);
         return q;
