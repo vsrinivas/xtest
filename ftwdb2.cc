@@ -30,13 +30,16 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 
 		leveldb::Slice key(path, strlen(path) + 1);
 
+		printf("==> %s, ", path);
+		if (sb->st_size > 1048576)
+			fflush(stdout);
 		val = md5sum(path);
 		if (!val) {
  			printf("md5sum error: %s\n", path);
 			rc = -1;
 			break;
 		}
-		printf("==> %s, %s\n", path, val);
+		printf("%s\n", val);
 
 		leveldb::Slice value(val, 32 + 1);
 
