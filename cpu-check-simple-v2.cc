@@ -12,7 +12,7 @@
 #define GB	1024ul * MB
 
 #ifndef N  // Buffer size
-#define N  (2 * GB)
+#define N  (1 * GB)
 #endif
 
 #ifdef __x86_64__
@@ -111,7 +111,7 @@ void check(int cpu) {
 // 	fill a random buffer;
 // 	hash it ( both fnv1a, jenkins, murmur one-at-a-time hashes )
 //	make a copy of it into the destination buffer (misaligned if possible)
-//	for each cpu in parallel:
+//	for each cpu (in parallel optionally):
 //		hash the copy (fnv1a, jenkins, murmur)
 //		compare the hash to the originally computed hash;
 //	move back to the source cpu
@@ -124,7 +124,7 @@ void check(int cpu) {
 // build that code on a target environment where i had memtest86 report bad
 // memory, so I wanted to test it via other mechanisms.
 //
-// c++ cpu-check-simple-v2.cc hashes.c murmur3.c  zencpy.S -pthread
+// c++ cpu-check-simple-v2.cc hashes.c murmur3.c  zencpy.S -pthread -DPARALLEL
 // ./cpu_check <N> <max_loops>
 int main(int argc, char *argv[]) {
   std::vector<uint8_t> data_src, data_dst;
