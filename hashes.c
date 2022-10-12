@@ -1,7 +1,9 @@
 #include <stdint.h>
 #include <stddef.h>
+#include "hashes.h"
 
 #ifdef __SSE4_2__
+#include <x86intrin.h>
 uint32_t crc32c(unsigned char *buf, size_t len) {
 	uint32_t l = 0;
 	for (int i = 0; i < len; i++) {
