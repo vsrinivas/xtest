@@ -140,11 +140,13 @@ int main(int argc, char *argv[]) {
   int max_loops;
 
   cpus = std::thread::hardware_concurrency();
+#ifdef PARALLEL
   std::vector<std::thread> threads;
   for (int i = 0; i < cpus; i++) {
 	std::thread th(check, i);
 	threads.push_back(std::move(th));
   }
+#endif
 
   if (argc > 1)
     size = atol(argv[1]);
@@ -186,6 +188,7 @@ int main(int argc, char *argv[]) {
     memcpy(dst, data_src.data(), data_src.size());
 #endif
 
+#ifdef PARALLEL
     g_ack = cpus;
     g_args.jhash = jhash0;
     g_args.hash = hash0;
@@ -197,6 +200,27 @@ int main(int argc, char *argv[]) {
     while (g_ack.load() != 0) {
 	pause();
     }
+#else
+    for (int i = 0; i < cpus; i++) {
+      move(i);
+      uint32_t jhash = jenkins_one_at_a_time_hash(dst, dst_size);
+      uint64_t hash = FNV1A_64((const char *) dst, dst_size);
+      uint32_t mhash = murmur3_32((const uint8_t *) dst, dst_size, 0x1);
+#ifdef DEBUG
+      printf("Validate buffer (source cpu %d target cpu %d align %lu (jhash %x hash %lx mhash %x)...\n", rotor, i, ((uintptr_t) dst) & (64 - 1), jhash, hash, mhash);
+#endif
+      if (jhash0 != jhash) {
+        abort();
+      }
+      if (hash0 != hash) {
+        abort();
+      }
+      if (mhash0 != mhash) {
+        abort();
+      }
+    }
+    move(rotor);
+#endif  // PARALLEL
 
 #ifdef DEBUG
     printf("Check buffers (source cpu %d)...\n", rotor);
@@ -226,8 +250,10 @@ int main(int argc, char *argv[]) {
       misalign = 0;
   }
 
+#ifdef PARALLEL
   g_should_exit = true;
   for (int i = 0; i < cpus; i++) {
     threads[i].join();
   }
+#endif
 }
