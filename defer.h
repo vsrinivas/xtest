@@ -1,34 +1,11 @@
 #ifndef DEFER_H_
 #define DEFER_H_
 
-#include <pthread.h>
-#include <deque>
-#include <functional>
-#include "barrier.h"
+#include <stddef.h>
 
-class Defer {
- public:
-  ~Defer() { stop(); }
+void defer_init(void);
+void defer_munmap(int fd, void *buf, size_t);
+void defer_close(int fd);
+void defer_sync(void);
 
-  static Defer* Default();
-  void defer(std::function<void()> f, struct barrier* b);
-
- private:
-  struct work {
-    std::function<void()> f;
-    struct barrier* barrier;
-  };
-
-  Defer();
-  void worker();
-  void stop();
-
-  pthread_mutex_t mu_;
-  pthread_t worker_;
-  bool should_exit_;
-  std::deque<struct work> work_;
-
-  friend void* c_worker(void*);
-};
-
-#endif  // DEFER_H_
+#endif
