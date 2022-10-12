@@ -75,14 +75,12 @@ void check(int cpu) {
 		}
 		if (last == g_go) {
 			pause();
-			sched_yield();
 			continue;
 		}
 		if (cpu == rotor) {
 			pause();
 			last = g_go;
 			g_ack--;
-			sched_yield();
 			continue;
 		}
 	
@@ -201,7 +199,7 @@ int main(int argc, char *argv[]) {
     }
 
 #ifdef DEBUG
-    printf("Clear buffers (source cpu %d)...\n", rotor);
+    printf("Check buffers (source cpu %d)...\n", rotor);
 #endif
     // Back on the source CPU; check the hashes again.
     uint32_t jhash = jenkins_one_at_a_time_hash(data_src.data(), data_src.size());
@@ -220,8 +218,6 @@ int main(int argc, char *argv[]) {
     if (hash0 != hash) {
       abort();
     }
-    memset(data_src.data(), 0xAA, data_src.size());
-    memset(data_dst.data(), 0xAA, data_dst.size());
     rotor++;
     if (rotor == cpus)
       rotor = 0;
