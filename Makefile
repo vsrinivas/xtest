@@ -78,9 +78,10 @@ pwq_test: pwq_test.o $(THREADS)
 	$(CXX) $(LDFLAGS) -o $@ pwq_test.o $(THREADS) -pthread
 
 .PHONY: check
-check: hashes_test pwq_test
+check: hashes_test pwq_test cpuid
 	./hashes_test
 	./pwq_test
+	./cpuid
 
 .PHONY: clean
 clean:
