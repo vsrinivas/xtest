@@ -16,8 +16,11 @@ UTIL=\
 
 CMDS=\
 	cpuid \
+	cphash \
+	countcphash \
 	ftwdb2 \
 	ftwdb2_fnv \
+	dbmerge \
 	dbtransactor \
 	pwc \
 	while \
@@ -42,7 +45,10 @@ ftwdb2: ftwdb2.o $(MD5)
 ftwdb2_fnv: ftwdb2_fnv.o hashes.o
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy
 
-dbtransactor: dbtransactor.o $(MD5)
+dbmerge: dbmerge.o
+	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
+
+dbtransactor: dbtransactor.o
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
 
 leveldb_to_bdb:
@@ -70,6 +76,9 @@ oldftwdb:
 
 olddumpdb:
 	$(CC) $(LDFLAGS) -o $@ dumpdb.c
+
+countcphash: countcphash.o hashes.o
+	$(CXX) $(LDFLAGS) -o $@ $^
 
 hashes_test: hashes.o hashes_test.o
 	$(CC) $(LDFLAGS) -o $@ hashes_test.o hashes.o
