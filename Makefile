@@ -91,6 +91,7 @@ check: hashes_test pwq_test cpuid
 	./hashes_test
 	./pwq_test
 	./cpuid
+	$(MAKE) -C san check
 
 .PHONY: clean
 clean:

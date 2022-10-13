@@ -1,5 +1,6 @@
 #define NULL	((void *) 0)
 typedef char __tsan_atomic8;
+typedef int __tsan_atomic32;
 
 __attribute__((no_sanitize_thread)) void spin_lock(unsigned long *l) {  while (__atomic_exchange_n(l, 1, __ATOMIC_ACQ_REL)); }
 __attribute__((no_sanitize_thread)) void spin_unlock(unsigned long *l) { __atomic_store_n(l, 0, __ATOMIC_RELEASE); }
@@ -91,10 +92,12 @@ __attribute__((no_sanitize_thread))
 __tsan_atomic8 __tsan_atomic8_load(const volatile __tsan_atomic8 *addr, __tsan_memory_order order) {
 	struct vectortab *vec;
 	struct locationtab *loc;
+
+	spin_lock(&g_location_lock);
+	__tsan_atomic8 val = __atomic_load_n(addr, order);
 	if (order == __tsan_memory_order_seq_cst ||
 	    order == __tsan_memory_order_acquire ||
 	    order == __tsan_memory_order_acq_rel) {
-		spin_lock(&g_location_lock);
 		vec = &g_vectortab[g_mycpu];
 		loc = find((unsigned long) addr);
 		if (loc->seq) {
@@ -104,9 +107,9 @@ __tsan_atomic8 __tsan_atomic8_load(const volatile __tsan_atomic8 *addr, __tsan_m
 			// three-cpu sequences?;
 			vec->seqno[loc->cpu] = loc->seq;
 		}
-		spin_unlock(&g_location_lock);
-	}
-	return __atomic_load_n(addr, order);
+	} else { asm volatile("int3"); }
+	spin_unlock(&g_location_lock);
+	return val;
 }
 __attribute__((no_sanitize_thread))
 void __tsan_atomic8_store(volatile __tsan_atomic8 *addr, __tsan_atomic8 v, __tsan_memory_order order) {
@@ -114,18 +117,24 @@ void __tsan_atomic8_store(volatile __tsan_atomic8 *addr, __tsan_atomic8 v, __tsa
 	struct locationtab *loc;
 	int nseq;
 
+	spin_lock(&g_location_lock);
 	__atomic_store_n(addr, v, order);
 	if (order == __tsan_memory_order_seq_cst ||
 	    order == __tsan_memory_order_release ||
 	    order == __tsan_memory_order_acq_rel) {
 		vec = &g_vectortab[g_mycpu];
 		nseq = vec->seqno[g_mycpu]++;
-		spin_lock(&g_location_lock);
 		loc = find((unsigned long) addr);
 		loc->cpu = g_mycpu;
 		loc->seq = nseq;
-		spin_unlock(&g_location_lock);
-	}
+	} else { asm volatile("int3"); }
+	spin_unlock(&g_location_lock);
+}
+
+// For g_max_ticks, incomplete.
+__attribute__((no_sanitize_thread))
+__tsan_atomic32 __tsan_atomic32_load(const volatile __tsan_atomic32 *addr, __tsan_memory_order order) {
+        return __atomic_load_n(addr, order);
 }
 
 void __tsan_init(void) {}
@@ -139,22 +148,27 @@ __attribute__((no_sanitize_thread)) void cpu_boot(int cpu_num) { g_mycpu = cpu_n
 void *cpu(void *ip) {
 	int i = (int) ip;
 	cpu_boot(i);
+	extern int g_max_ticks;
+	int ticks = 0;
 
 	for (;;) {
 #ifdef TEST0
 		g_check++;
 #endif
 #ifdef TEST1
+		if (ticks == 0) {
 		if (i == 0) {
 			g_check++;
 			__atomic_store_n(&g_flag, 1, __ATOMIC_RELEASE);
-			for (;;);
 		} else {
 			while (__atomic_load_n(&g_flag, __ATOMIC_ACQUIRE) == 0);
 			unsigned char xp = g_check;
-			if (xp != 1) asm volatile("int $1");
-			for (;;);
+			if (xp != 1) asm volatile("int3");
 		}
+		} // ticks == 0;
 #endif
+		ticks++;
+		if (ticks == __atomic_load_n(&g_max_ticks, __ATOMIC_ACQUIRE))
+			break;
 	}
 }

@@ -1,5 +1,6 @@
 #define NULL	((void *) 0)
 typedef char __tsan_atomic8;
+typedef int __tsan_atomic32;
 
 // Part of ABI, do not change.
 // http://llvm.org/viewvc/llvm-project/libcxx/trunk/include/atomic?view=markup
@@ -96,6 +97,11 @@ void __tsan_atomic_thread_fence(__tsan_memory_order order) {
 		clear();
 }
 
+__attribute__((no_sanitize_thread))
+__tsan_atomic32 __tsan_atomic32_load(const volatile __tsan_atomic32 *addr, __tsan_memory_order order) {
+	return __atomic_load_n(addr, order);
+}
+
 void __tsan_init(void) {}
 void __tsan_func_entry(void *call_pc) {}
 void __tsan_func_exit(void *call_pc) {}
@@ -107,6 +113,8 @@ __attribute__((no_sanitize_thread)) void cpu_boot(int cpu_num) { mycpu = cpu_num
 void *cpu(void *ip) {
 	int i = (int) ip;
 	cpu_boot(i);
+	extern int g_max_ticks;
+	int ticks = 0;
 
 	for (;;) {
 #ifdef TEST0
@@ -116,17 +124,24 @@ void *cpu(void *ip) {
 		__atomic_fetch_add(&checkpt, 1, __ATOMIC_SEQ_CST);
 #endif
 #ifdef TEST2
-		if (i == 0) {
+		if (i == 0 && ticks == 0) {
 			guarded = 1;
 			__atomic_store_n(&checkpt, 1, __ATOMIC_RELEASE);
 			while (__atomic_load_n(&checkpt, __ATOMIC_ACQUIRE) == 1)
 				;
-			for (;;);	// success
-		} else {
+			// If we got here, then we rendezvous'ed with other CPUs;
+		} else if (i == 1 && ticks == 0) {
 			while (__atomic_load_n(&checkpt, __ATOMIC_ACQUIRE) != 1);
 			if (guarded != 1) asm volatile("int3");
 			__atomic_store_n(&checkpt, 2, __ATOMIC_RELEASE); 
+		} else if (i == 2 || i == 3) {
+			if (__atomic_load_n(&checkpt, __ATOMIC_ACQUIRE) == 1) {
+				if (guarded != 1) asm volatile("int3");
+			}
 		}
 #endif
+		ticks++;
+		if (ticks == __atomic_load_n(&g_max_ticks, __ATOMIC_ACQUIRE))
+			break;
 	}
 }
