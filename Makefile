@@ -87,10 +87,11 @@ pwq_test: pwq_test.o $(THREADS)
 	$(CXX) $(LDFLAGS) -o $@ pwq_test.o $(THREADS) -pthread
 
 .PHONY: check
-check: hashes_test pwq_test cpuid
+check: hashes_test pwq_test cpuid $(CMDS)
 	./hashes_test
 	./pwq_test
 	./cpuid
+	./cpu-check-small.exe 65536 16
 	$(MAKE) -C san check
 
 .PHONY: clean
