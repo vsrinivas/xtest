@@ -1,6 +1,7 @@
 #include <atomic>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <vector>
 #include <thread>
 #include <sched.h>
