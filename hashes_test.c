@@ -20,8 +20,8 @@ float rate(uint64_t bytes, uint64_t usec) {
 int main(int argc, char *argv[]) {
 	char *buf;
 
-	int sizes[] = { 1024, 4096, 16384, 65536, 262144, 1048576 };
-	unsigned long iters = 1000000ul;
+	int sizes[] = { 1024, 4096, 16384, 65536 };
+	unsigned long iters = 10000ul;
 
 	int i;
 	unsigned long j;
@@ -63,8 +63,6 @@ int main(int argc, char *argv[]) {
                 printf("%f GB/s \n", rate(iters * sizes[i], after-before));
 
 
-		// fasthash32
-		                // jenkins
                 before = xtime();
                 for (j = 0; j < iters; j++) {
                         fasthash32(buf, sizes[i], 0);
@@ -74,9 +72,6 @@ int main(int argc, char *argv[]) {
                 printf("fasthash32: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
                 printf("%f GB/s \n", rate(iters * sizes[i], after-before));
 
-
-                // fasthash64
-                                // jenkins
                 before = xtime();
                 for (j = 0; j < iters; j++) {
                         fasthash64(buf, sizes[i], 0);
@@ -85,21 +80,6 @@ int main(int argc, char *argv[]) {
                 after = xtime();
                 printf("fasthash64: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
                 printf("%f GB/s \n", rate(iters * sizes[i], after-before));
-
-
-
-                // fasthash32
-                                // jenkins
-#ifdef __SSE4_2__
-                before = xtime();
-                for (j = 0; j < iters; j++) {
-                        crc32c(buf, sizes[i]);
-                        asm volatile("" : : : "memory");
-                }
-                after = xtime();
-                printf("crc32: %lu iters over %lu bytes in %lu usec: ", iters, sizes[i], after-before);
-                printf("%f GB/s \n", rate(iters * sizes[i], after-before));
-#endif
 
 		free(buf);
 	}

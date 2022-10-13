@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -19,11 +20,12 @@ struct work {
 	size_t size;
 };
 
-#define DEFER (32)
+#define DEPTH (32)
 struct work g_work[DEPTH];
 static uint32_t head;
 static uint32_t tail;
 
+#if 0
 static void *worker(void *arg) {
 	pthread_mutex_lock(&g_mutex);
 	for (;;) {
@@ -51,3 +53,4 @@ void defer_close(int fd) {
 void defer_sync(void) {
 
 }
+#endif

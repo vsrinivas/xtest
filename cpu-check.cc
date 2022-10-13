@@ -1,23 +1,37 @@
+#include <atomic>
 #include <stdint.h>
 #include <vector>
-#include <unordered_map>
 #include <thread>
 #include <sched.h>
 #include <string.h>
 #include <limits.h>
 #include "hashes.h"
 
-#include "checkbuf.inc"
+#define KB	1024ul
+#define MB	1024ul * KB
+#define GB	1024ul * MB
 
-static int do_checkbuf = 0;
+#ifndef N  // Buffer size
+#define N  (1 * GB)
+#endif
 
 #ifdef __x86_64__
+extern "C" void _zencpy(void *dst, void *src, size_t len);
+
 static void
 rep_movsb(unsigned char* dst, unsigned char const* src, size_t n) {
   __asm__ __volatile__("rep movsb" : "+D"(dst), "+S"(src), "+c"(n)
                        : : "memory");
 }
 #endif
+
+void pause() {
+#ifdef __x86_64__
+			__builtin_ia32_lfence();
+			__builtin_ia32_pause();
+			__builtin_ia32_lfence();
+#endif
+}
 
 void move(int cpu) {
   cpu_set_t set;
@@ -37,14 +51,67 @@ void randomize(std::vector<uint8_t>& v, int ref) {
 
 extern "C" uint32_t murmur3_32(const uint8_t *key, size_t len, uint32_t seed);
 
+struct args {
+	uint32_t jhash;
+	uint64_t hash;
+	uint32_t mhash;
+	void* dst;
+	size_t dst_size;
+};
+static std::atomic<uint32_t> g_go;
+static std::atomic<uint32_t> g_ack;
+static std::atomic<bool> g_should_exit;
+struct args g_args;
+int rotor = 0;
+
+void check(int cpu) {
+	move(cpu);
+
+	uint32_t last = 0;
+	for (;;) {
+		if (g_should_exit) {
+			g_ack--;
+			break;
+		}
+		if (last == g_go) {
+			pause();
+			continue;
+		}
+		if (cpu == rotor) {
+			pause();
+			last = g_go;
+			g_ack--;
+			continue;
+		}
+	
+      		uint32_t jhash = jenkins_one_at_a_time_hash((const uint8_t *) g_args.dst, g_args.dst_size);
+    		uint64_t hash = FNV1A_64((const char *) g_args.dst, g_args.dst_size);
+      		uint32_t mhash = murmur3_32((const uint8_t *) g_args.dst, g_args.dst_size, 0x1);
+#ifdef DEBUG
+     		printf("Validate buffer (source cpu %d target cpu %d align %lu (jhash %x hash %lx mhash %x)...\n", rotor, cpu, ((uintptr_t) g_args.dst) & (64 - 1), jhash, hash, mhash);
+#endif
+	      	if (g_args.jhash != jhash) {
+        		abort();
+     	 	}
+      	      	if (g_args.hash != hash) {
+        		abort();
+      	      	}
+      	      	if (g_args.mhash != mhash) {
+        		abort();
+      	      	}
+
+	        last = g_go;
+	        g_ack--;
+	}
+}
+
 // A simple tester for CPU and memory subsystems. 
 //
 // For each cpu
 // 	fill a random buffer;
 // 	hash it ( both fnv1a, jenkins, murmur one-at-a-time hashes )
-// 	compare the jenkins hash against a precomputed hash (if available)
 //	make a copy of it into the destination buffer (misaligned if possible)
-//	for each cpu:
+//	for each cpu (in parallel optionally):
 //		hash the copy (fnv1a, jenkins, murmur)
 //		compare the hash to the originally computed hash;
 //	move back to the source cpu
@@ -57,23 +124,29 @@ extern "C" uint32_t murmur3_32(const uint8_t *key, size_t len, uint32_t seed);
 // build that code on a target environment where i had memtest86 report bad
 // memory, so I wanted to test it via other mechanisms.
 //
-// c++ -o cpu_check cpu_check.cc fnv1a.cc -DN=<size>
+// c++ cpu-check-simple-v2.cc hashes.c murmur3.c  zencpy.S -pthread -DPARALLEL
 // ./cpu_check <N> <max_loops>
 int main(int argc, char *argv[]) {
   std::vector<uint8_t> data_src, data_dst;
   volatile uint32_t jhash0;
   volatile uint64_t hash0;
   volatile uint32_t mhash0;
-  int loops = 0;
+  uint32_t loops = 0;
   int cpus;
   size_t size;
   int i;
-  int rotor = 0;
   int misalign = 0;
   int MAX_MISALIGN = 64;
   int max_loops;
 
   cpus = std::thread::hardware_concurrency();
+#ifdef PARALLEL
+  std::vector<std::thread> threads;
+  for (int i = 0; i < cpus; i++) {
+	std::thread th(check, i);
+	threads.push_back(std::move(th));
+  }
+#endif
 
   if (argc > 1)
     size = atol(argv[1]);
@@ -85,16 +158,11 @@ int main(int argc, char *argv[]) {
   else
     max_loops = INT_MAX;
 
-  if (size == N) {
-    printf("do_checkbuf=1, Jenkins hashes will be checked.\n");
-    do_checkbuf = 1;
-  }
-
-  data_src.resize(N);
-  data_dst.resize(N + MAX_MISALIGN);
+  data_src.resize(size);
+  data_dst.resize(size + MAX_MISALIGN);
   for (loops = 0; loops < max_loops; loops++) {
     uint8_t* const dst = data_dst.data() + misalign;
-    size_t dst_size = N;
+    size_t dst_size = size;
     printf("loop %d ==>\n", loops);
     move(rotor);
 #ifdef DEBUG
@@ -104,18 +172,15 @@ int main(int argc, char *argv[]) {
     jhash0 = jenkins_one_at_a_time_hash((const uint8_t *) data_src.data(), data_src.size());
     hash0 = FNV1A_64((const char *) data_src.data(), data_src.size());
     mhash0 = murmur3_32((const uint8_t*) data_src.data(), data_src.size(), 0x1);
-    if (do_checkbuf && jcheckbuf.count(loops)) {
-      if (jcheckbuf[loops] != jhash0) {
-	      printf("WARNING: jenkins hash at loop %d didn't match precomputed table, %x exp %x\n", loops, jhash0, jcheckbuf[loops]);
-	      abort();
-      }
-    }
 #ifdef DEBUG
     printf("Source (cpu %d) jhash %x hash %lx mhash %x...\n", rotor, jhash0, hash0, mhash0);
 #endif
 #ifdef __x86_64__
-    if (loops & 1) {
+    int t = loops % 3;
+    if (t == 0) {
       rep_movsb(dst, data_src.data(), data_src.size());
+    } else if (t == 1) {
+      _zencpy(dst, data_src.data(), data_src.size());
     } else {
       memcpy(dst, data_src.data(), data_src.size());
     }
@@ -123,27 +188,42 @@ int main(int argc, char *argv[]) {
     memcpy(dst, data_src.data(), data_src.size());
 #endif
 
+#ifdef PARALLEL
+    g_ack = cpus;
+    g_args.jhash = jhash0;
+    g_args.hash = hash0;
+    g_args.mhash = mhash0;
+    g_args.dst = dst;
+    g_args.dst_size = dst_size;
+    g_go = loops + 1; // Release all other CPUs;
+    // Wait for every CPU to checksum buffers;
+    while (g_ack.load() != 0) {
+	pause();
+    }
+#else
     for (int i = 0; i < cpus; i++) {
       move(i);
       uint32_t jhash = jenkins_one_at_a_time_hash(dst, dst_size);
       uint64_t hash = FNV1A_64((const char *) dst, dst_size);
       uint32_t mhash = murmur3_32((const uint8_t *) dst, dst_size, 0x1);
 #ifdef DEBUG
-      printf("Validate buffer (source cpu %d target cpu %d (jhash %x hash %lx mhash %x)...\n", rotor, i, jhash, hash, mhash);
+      printf("Validate buffer (source cpu %d target cpu %d align %lu (jhash %x hash %lx mhash %x)...\n", rotor, i, ((uintptr_t) dst) & (64 - 1), jhash, hash, mhash);
 #endif
       if (jhash0 != jhash) {
-	abort();
+        abort();
       }
       if (hash0 != hash) {
         abort();
       }
       if (mhash0 != mhash) {
-	abort();
+        abort();
       }
     }
     move(rotor);
+#endif  // PARALLEL
+
 #ifdef DEBUG
-    printf("Clear buffers (source cpu %d)...\n", rotor);
+    printf("Check buffers (source cpu %d)...\n", rotor);
 #endif
     // Back on the source CPU; check the hashes again.
     uint32_t jhash = jenkins_one_at_a_time_hash(data_src.data(), data_src.size());
@@ -162,13 +242,18 @@ int main(int argc, char *argv[]) {
     if (hash0 != hash) {
       abort();
     }
-    memset(data_src.data(), 0xAA, data_src.size());
-    memset(data_dst.data(), 0xAA, data_dst.size());
     rotor++;
     if (rotor == cpus)
       rotor = 0;
+    misalign++;
+    if (misalign == MAX_MISALIGN)
+      misalign = 0;
   }
-  misalign++;
-  if (misalign == MAX_MISALIGN)
-    misalign = 0;
+
+#ifdef PARALLEL
+  g_should_exit = true;
+  for (int i = 0; i < cpus; i++) {
+    threads[i].join();
+  }
+#endif
 }

@@ -3,7 +3,9 @@ MD5=\
 
 THREADS=\
 	barrier.o \
+	defer.o \
 	pwq.o \
+	workqueue.o
 
 OLD=\
 	fftw.o
@@ -13,11 +15,18 @@ UTIL=\
 	$(THREADS)
 
 CMDS=\
+	cpuid \
 	ftwdb2 \
+	ftwdb2_fnv \
 	dbtransactor \
 	pwc \
 	while \
-	whilehammer
+	whilehammer \
+	xwait \
+	\
+	cpu-check-medium.exe \
+	cpu-check-small.exe \
+	cpu-check-serial.exe
 
 .PHONY: default
 default: $(CMDS)
@@ -27,13 +36,11 @@ libleveldb.a:
 libninja-test.a:
 	$(MAKE) -f Makefile.third_party-ninja-test libninja-test.a
 
-fnv1a.o: fnv1a.c
-
-fnv1a_test: fnv1a_test.o fnv1a.o libninja-test.a
-	$(CXX) $(LDFLAGS) -o fnv1a_test $^
-
 ftwdb2: ftwdb2.o $(MD5)
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
+
+ftwdb2_fnv: ftwdb2_fnv.o hashes.o
+	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy
 
 dbtransactor: dbtransactor.o $(MD5)
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
@@ -44,21 +51,15 @@ leveldb_to_bdb:
 bdb_to_leveldb:
 	$(CXX) -o bdb_to_leveldb bdb_to_leveldb.cc -lleveldb -lsnappy -ldb
 
-# 16 GB source/dst buffer.
-cpu-check.exe: hashesh.o
-	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=16179869184UL -march=native
-	./checkbuf > checkbuf.inc
-	$(CXX) -o cpu-check.exe cpu-check.cc hashes.o murmur3.c  -DN=16179869184UL  -O2 -DDEBUG -g -march=native
+cpu-check-medium.exe: hashes.o murmur3.o zencpy.o
+	$(CXX) -o cpu-check-medium.exe cpu-check.cc hashes.o murmur3.o zencpy.o -DN=4294967296UL  -O2 -DDEBUG -g -march=native -DPARALLEL -pthread
 
-cpu-check-medium.exe: hashes.o
-	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=4294967296UL -march=native
-	./checkbuf > checkbuf.inc
-	$(CXX) -o cpu-check-medium.exe cpu-check.cc hashes.o murmur3.c  -DN=4294967296UL  -O2 -DDEBUG -g -march=native
+cpu-check-small.exe: hashes.o murmur3.o zencpy.o
+	$(CXX) -o cpu-check-small.exe cpu-check.cc hashes.o murmur3.o zencpy.o -DN=1048576UL  -O2 -DDEBUG -g -march=native -DPARALLEL -pthread
 
-cpu-check-small.exe: hashes.o
-	$(CXX) -O2 -o checkbuf checkbuf.cc -DN=1048576UL -march=native
-	./checkbuf > checkbuf.inc
-	$(CXX) -o cpu-check-small.exe cpu-check.cc hashes.o murmur3.c -DN=1048576UL  -O2 -DDEBUG -g -march=native
+cpu-check-serial.exe: hashes.o murmur3.o zencpy.o
+	$(CXX) -o cpu-check-serial.exe cpu-check.cc hashes.o murmur3.o zencpy.o -DN=1048576UL  -O2 -DDEBUG -g -march=native
+
 
 # Parallel wordcount; RC 2018.
 pwc:	pwc.o
@@ -70,30 +71,19 @@ oldftwdb:
 olddumpdb:
 	$(CC) $(LDFLAGS) -o $@ dumpdb.c
 
+hashes_test: hashes.o hashes_test.o
+	$(CC) $(LDFLAGS) -o $@ hashes_test.o hashes.o
+
+pwq_test: pwq_test.o $(THREADS)
+	$(CXX) $(LDFLAGS) -o $@ pwq_test.o $(THREADS) -pthread
+
 .PHONY: check
-check: fnv1a_test
-	./fnv1a_test
+check: hashes_test pwq_test
+	./hashes_test
+	./pwq_test
 
 .PHONY: clean
 clean:
 	$(MAKE) -f Makefile.third_party-leveldb clean
 	$(MAKE) -f Makefile.third_party-ninja-test clean
 	rm -f $(UTIL) $(CMDS) ftwdb2.o transactor.o pwc.o oldftwdb olddumpdb
-	rm -f \
-		bdb_to_leveldb \
-		countcphash \
-		countcphash2 \
-		cpcr2 \
-		cphash \
-		dbtransactor \
-		dumpdb \
-		dumpdb2 \
-		ftw2db2log \
-		leveldb_to_bdb \
-		log2leveldb \
-		memback \
-		roundup_test \
-		sampzero \
-		zerorun \
-		fnv1a_test \
-		fnv1a.o
