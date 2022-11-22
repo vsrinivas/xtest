@@ -7,6 +7,7 @@
 #include <sched.h>
 #include <string.h>
 #include <limits.h>
+#include <unistd.h>
 #include "hashes.h"
 
 #define KB	1024ul
@@ -27,7 +28,7 @@ rep_movsb(unsigned char* dst, unsigned char const* src, size_t n) {
 }
 #endif
 
-void pause() {
+void xpause() {
 #ifdef __x86_64__
 			__builtin_ia32_lfence();
 			__builtin_ia32_pause();
@@ -76,13 +77,15 @@ void check(int cpu) {
 			break;
 		}
 		if (last == g_go) {
-			pause();
+			xpause();
+			usleep(1);
 			continue;
 		}
 		if (cpu == rotor) {
-			pause();
+			xpause();
 			last = g_go;
 			g_ack--;
+			usleep(1);
 			continue;
 		}
 	
@@ -200,7 +203,8 @@ int main(int argc, char *argv[]) {
     g_go = loops + 1; // Release all other CPUs;
     // Wait for every CPU to checksum buffers;
     while (g_ack.load() != 0) {
-	pause();
+      xpause();
+      usleep(1);
     }
 #else
     for (int i = 0; i < cpus; i++) {
