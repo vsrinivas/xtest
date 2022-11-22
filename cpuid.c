@@ -1,8 +1,45 @@
 #include <cpuid.h>
 #include <stdio.h>
+#include <string.h>
 
 int main(int argc, char *argv[]) {
         unsigned long a, b, c, d;
+	unsigned char mfg[12 + 1];
+	unsigned long f, m, s;
+
+	__cpuid_count(0x0, 0x0, a, b, c, d);
+        printf("CPUID.(EAX=0h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	memcpy(&mfg[0], &b, 4);
+	memcpy(&mfg[4], &d, 4);
+	memcpy(&mfg[8], &c, 4);
+	mfg[12] = 0;
+	printf("%s\n", mfg);
+
+	/* Brand String */
+	unsigned int brand[12];
+	__get_cpuid(0x80000002, brand+0x0, brand+0x1, brand+0x2, brand+0x3);
+	__get_cpuid(0x80000003, brand+0x4, brand+0x5, brand+0x6, brand+0x7);
+	__get_cpuid(0x80000004, brand+0x8, brand+0x9, brand+0xa, brand+0xb);
+	printf("%s\n", brand);
+
+	__cpuid_count(0x1, 0x0, a, b, c, d);
+        printf("CPUID.(EAX=01h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	f = ((a >> 8) & 0xf) | ((a >> 16) & 0xff0);
+	m = ((a >> 4) & 0xf) | ((a >> 12) & 0xf0);
+	s = (a & 0xf);
+	printf("Family %x Model %x Stepping %x\n", f, m, s);
+	if (c & (1 << 9))
+		printf("ssse3 ");
+	if (c & (1 << 19))
+		printf("sse4.1 ");
+	if (c & (1 << 26))
+		printf("xsave ");
+	if (c & (1 << 27))
+		printf("osxsave ");
+	if (c & (1 << 31))
+		printf("hypervisor ");
+
+	printf("\n");
 
 	/* CPUID.(EAX=07h,ECX=0) */
 	__cpuid_count(0x7, 0x0, a, b, c, d);
@@ -42,8 +79,7 @@ int main(int argc, char *argv[]) {
 
 	/* Fn8000_0008_EBX Extended Feature Identifiers */
         __cpuid_count(0x80000008, 0, a, b, c, d);
-        printf("Fn8000_0008 %lx %lx %lx %lx\n", a, b, c, d);
-
+        printf("CPUID.(EAX=8000_0008h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
         if (b & (1 << 12))
                 printf("ibpb ");
         if (b & (1 << 14))
@@ -71,4 +107,11 @@ int main(int argc, char *argv[]) {
         if (b & (1 << 29))
                 printf("BTC_NO ");
         printf("\n");
+
+	/* Fn8000_0021_EAX Extended Feature Identification 2 */
+        __cpuid_count(0x80000021, 0, a, b, c, d);
+        printf("CPUID.(EAX=8000_0021h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	if (a & (1 << 8))
+		printf("AutomaticIBRS ");
+	printf("\n");
 }
