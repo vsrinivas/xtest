@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
 	m = ((a >> 4) & 0xf) | ((a >> 12) & 0xf0);
 	s = (a & 0xf);
 	printf("Family %x Model %x Stepping %x\n", f, m, s);
+	printf("cpu_type=%x\n", a & 0xF0FF0);
 	if (c & (1 << 9))
 		printf("ssse3 ");
 	if (c & (1 << 19))
