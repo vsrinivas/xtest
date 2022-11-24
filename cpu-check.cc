@@ -47,8 +47,19 @@ void move(int cpu) {
 }
 
 void randomize(std::vector<uint8_t>& v, int ref) {
-  for (size_t i = 0; i < v.size(); ++i) {
-    v[i] = 0xAA + (i & 0xFF) + ref;
+  uint8_t val[8];
+  size_t qwords = v.size() / sizeof(uint64_t);
+  size_t extra = v.size() - (qwords * sizeof(uint64_t));
+  size_t extraoff = qwords * sizeof(uint64_t);
+
+  for (size_t i = 0; i < qwords; i += sizeof(uint64_t)) {
+    for (int j = 0; j < sizeof(uint64_t); j++) {
+      val[i] = 0xAA + ref + ((i + j) & 0xff);
+    }
+    memcpy(v.data() + i, val, sizeof(val));
+  }
+  for (size_t i = 0; i < extra; i++) {
+    v[extraoff + i] = 0xAA + ref + ((extraoff + i) & 0xFF);
   }
 }
 
@@ -203,8 +214,8 @@ int main(int argc, char *argv[]) {
     g_go = loops + 1; // Release all other CPUs;
     // Wait for every CPU to checksum buffers;
     while (g_ack.load() != 0) {
-      xpause();
-      usleep(1);
+	xpause();
+	usleep(1);
     }
 #else
     for (int i = 0; i < cpus; i++) {
@@ -241,10 +252,6 @@ int main(int argc, char *argv[]) {
       abort();
     }
     uint64_t hash = FNV1A_64((const char *) dst, dst_size);
-    if (hash0 != hash) {
-      abort();
-    }
-    hash = FNV1A_64((const char *) data_src.data(), data_src.size());
     if (hash0 != hash) {
       abort();
     }
