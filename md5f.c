@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdbool.h>
 
 #include <openssl/md5.h>
 #include "md5.h"
@@ -27,7 +28,9 @@ static char *md5sumbuflocal(const char *buf, size_t size) {
 }
 
 /* MD5 a file */
+#ifdef __cplusplus
 extern "C"
+#endif
 char *md5sumf(int fd, const struct stat *sb) {
 	char bounce[262144];
 	char *p; 

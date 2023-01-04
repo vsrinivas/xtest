@@ -8,28 +8,31 @@
 
 #include "defer.h"
 
-static pthread_t g_worker;
-static pthread_mutex_t g_mutex;
-static pthread_cond_t g_cond;
-static bool g_should_exit = false;
-
 struct work {
+	struct work *next;
+	/*
+	 * 0 = MUNMAP
+	 * 1 = CLOSE
+	 */
 	int opcode;
 	int fd;
 	void *buf;
 	size_t size;
 };
 
-#define DEPTH (32)
-struct work g_work[DEPTH];
-static uint32_t head;
-static uint32_t tail;
+static pthread_t g_worker;
+static pthread_mutex_t g_mutex;
+static pthread_cond_t g_cond;
+static bool g_should_exit = false;
+static struct work *g_work
 
-#if 0
 static void *worker(void *arg) {
+	struct work *w;
 	pthread_mutex_lock(&g_mutex);
 	for (;;) {
+		pthread_cond_wait(&g_cond, &g_mutex);
 	}
+	pthread_mutex_unlock(&g_mutex);
 	return NULL;
 }
 
@@ -49,8 +52,3 @@ void defer_munmap(int fd, void *buf, size_t size) {
 void defer_close(int fd) {
 
 }
-
-void defer_sync(void) {
-
-}
-#endif

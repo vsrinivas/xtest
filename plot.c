@@ -3,20 +3,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-// wait until loadavg < 1.5 . if opt arg is passed in, max minutes to wait.
+// write out loadavg to a file;
 main(int argc, char *argv[]) {
 	char buf[180];
 	char *ind;
 	FILE *f;
 	char *x, *y, *z, *q;
 	double d;
-	int minutes = 0;
-	int maxminutes;
+	FILE *log;
 
-	if (argc > 1)
-		maxminutes = atoi(argv[1]);
-	else
-		maxminutes = INT_MAX;
+	chdir("/home/vsrinivas/bin");
+	log = fopen("plot.log", "a");
 
 	for (;;) {
 		bzero(buf, 180);
@@ -38,16 +35,17 @@ main(int argc, char *argv[]) {
 		z++;
 		q = index(z, '\n');
 		*q = 0;
-		d = atof(x);
-#ifdef DEBUG
-		printf("X %s Y %s Z %s d=%f\n", x, y, z, d);
-#endif
-		if (d < 1.5)
-			break;
+		d = atof(x);	// 1s avg
 
-		sleep(60);
-		minutes++;
-		if (minutes >= maxminutes)
-			break;
+		bzero(buf, 180);
+		f = popen("date +%s", "r");
+		fgets(buf, 180, f);
+		pclose(f);
+		x = index(buf, '\n');
+		*x = 0;
+
+		fprintf(log, "%s, %f\n", buf, d);
+		fflush(log);
+		sleep(2);
 	}
 }
