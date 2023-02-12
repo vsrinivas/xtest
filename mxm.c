@@ -13,22 +13,49 @@ void multiply(uint32_t *C, const uint32_t *A, const uint32_t *B,
               int a_rows, int a_cols, int b_cols)
 {
         int i, j, k;
+	#define blocksize (256)
+	int jb, kb;
 
 #pragma omp parallel for
-        for (i = 0; i < a_rows; i++) {
-                for (k = 0; k < a_cols; k++) {
-			const uint32_t K = *V(A, i, k, a_cols);
-#pragma omp simd
-                	for (j = 0; j < b_cols; j++) {
-                                *V(C, i, j, b_cols) += K *
-                                                       *V(B, k, j, b_cols);
-                        }
-                }
-        }
+	for (int ii = 0; ii < a_rows; ii += blocksize) {
+		for (int jj = 0; jj < b_cols; jj += blocksize) {
+			for (int kk = 0; kk < a_cols; kk += blocksize) {
+				uint32_t BB[blocksize][blocksize] = {};
+				for (j = jj, jb = 0; j < jj + blocksize; j++, jb++) {
+					for (k = kk, kb = 0; k < kk + blocksize; k++, kb++) {
+						BB[jb][kb] = *V(B, k, j, b_cols);
+					}
+				}
+
+
+				for (i = ii; i < ii + blocksize; i += 2) {
+					for (j = jj, jb = 0; j < jj + blocksize; j += 2, jb +=2) {
+					uint32_t t00, t01, t10, t11;
+					t00 = *V(C, i, j, b_cols);
+					t01 = *V(C, i, j+1, b_cols);
+					t10 = *V(C, i+1, j, b_cols);
+					t11 = *V(C, i+1, j+1, b_cols);
+
+					for (k = kk, kb = 0; k < kk + blocksize; k++, kb++) {
+						t00 += *V(A, i, k, a_cols) * BB[jb][kb];
+						t01 += *V(A, i, k, a_cols) * BB[jb+1][kb];
+						t10 += *V(A, i+1, k, a_cols) * BB[jb][kb];
+						t11 += *V(A, i+1, k, a_cols) * BB[jb+1][kb];
+					}
+
+					*V(C, i, j, b_cols) = t00;
+					*V(C, i, j + 1, b_cols) = t01;
+					*V(C, i+1, j, b_cols) = t10;
+					*V(C, i+1, j+1, b_cols) = t11;
+					}
+				}
+			}
+		}
+	}
 }
 
 
-#define N (2500)
+#define N (2560)
 uint32_t A[N][N] = {};
 uint32_t B[N][N] = {};
 uint32_t C[N][N] = {};
