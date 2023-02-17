@@ -28,7 +28,7 @@ void multiply(uint32_t *C, const uint32_t *A, const uint32_t *B,
 }
 
 
-#define N (1024)
+#define N (4992)
 uint32_t A[N][N] = {};
 uint32_t B[N][N] = {};
 uint32_t C[N][N] = {};

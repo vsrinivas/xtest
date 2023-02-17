@@ -13,7 +13,7 @@ void multiply(uint32_t *C, const uint32_t *A, const uint32_t *B,
               int a_rows, int a_cols, int b_cols)
 {
         int i, j, k;
-	#define blocksize (256)
+	#define blocksize (64)
 	int jb, kb;
 
 #pragma omp parallel for
@@ -21,7 +21,8 @@ void multiply(uint32_t *C, const uint32_t *A, const uint32_t *B,
 		for (int jj = 0; jj < b_cols; jj += blocksize) {
 			for (int kk = 0; kk < a_cols; kk += blocksize) {
 				uint32_t BB[blocksize][blocksize] = {};
-				for (j = jj, jb = 0; j < jj + blocksize; j++, jb++) {
+				jb=0;
+				for (j = jj; j < jj + blocksize; j++, jb++) {
 					for (k = kk, kb = 0; k < kk + blocksize; k++, kb++) {
 						BB[jb][kb] = *V(B, k, j, b_cols);
 					}
@@ -55,7 +56,7 @@ void multiply(uint32_t *C, const uint32_t *A, const uint32_t *B,
 }
 
 
-#define N (2560)
+#define N (4992)
 uint32_t A[N][N] = {};
 uint32_t B[N][N] = {};
 uint32_t C[N][N] = {};
