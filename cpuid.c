@@ -37,18 +37,47 @@ int main(int argc, char *argv[]) {
 		printf("xsave ");
 	if (c & (1 << 27))
 		printf("osxsave ");
+	if (c & (1 << 28))
+		printf("avx ");
 	if (c & (1 << 31))
 		printf("hypervisor ");
-
 	printf("\n");
 
 	/* CPUID.(EAX=07h,ECX=0) */
 	__cpuid_count(0x7, 0x0, a, b, c, d);
         printf("CPUID.(EAX=07h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	if (b & (1 << 3))
+		printf("bmi1 ");
+	if (b & (1 << 5))
+		printf("avx2 ");
+	if (b & (1 << 7))
+		printf("smep ");
+	if (b & (1 << 9))
+		printf("erms ");
+	if (b & (1 << 16))
+		printf("avx512f ");
+	if (b & (1 << 17))
+		printf("avx512-dq ");
+	if (b & (1 << 20))
+		printf("smap ");
+	if (b & (1 << 21))
+		printf("avx512-ifma ");
+	if (c & (1 << 5))
+		printf("waitpkg ");
+	if (c & (1 <<11))
+		printf("avx512-vnni ");
+	if (d & (1 << 4))
+		printf("fsrm ");
 	if (d & (1 << 9))
 		printf("ia32_mcu_opt_ctrl ");
 	if (d & (1 << 10))
 		printf("md_clear ");
+	if (d & (1 << 22))
+		printf("amx-bf16 ");
+	if (d & (1 << 24))
+		printf("amx-tile ");
+	if (d & (1 << 25))
+		printf("amx-int8 ");
 	if (d & (1 << 26))
 		printf("ibrs ");
 	if (d & (1 << 27))
@@ -63,6 +92,19 @@ int main(int argc, char *argv[]) {
 		printf("ssbd ");
         printf("\n");
 
+	/* CPUID.(EAX=07h,ECX=1) */
+	__cpuid_count(0x7, 0x1, a, b, c, d);
+        printf("CPUID.(EAX=07h,ECX=1) %lx %lx %lx %lx\n", a, b, c, d);
+	if (a & (1 << 10))
+		printf("fast_zero_rep_movsb ");
+	if (a & (1 << 11))
+		printf("fast_short_rep_stosb ");
+	if (a & (1 << 12))
+		printf("fast_short_rep_cmpsb_scasb ");
+	if (a & (1 << 21))
+		printf("amx-fp16 ");
+	printf("\n");
+
 	/* CPUID.(EAX=07h,ECX=2) */
 	__cpuid_count(0x7, 0x2, a, b, c, d);
         printf("CPUID.(EAX=07h,ECX=2) %lx %lx %lx %lx\n", a, b, c, d);
@@ -76,6 +118,15 @@ int main(int argc, char *argv[]) {
 		printf("bhi_ctrl ");
 	if (d & (1 << 5))
 		printf("mcdt_no ");
+        printf("\n");
+
+	/* Fn8000_0001 Extended Processor Info and Feature Bits */
+        __cpuid_count(0x80000001, 0, a, b, c, d);
+        printf("CPUID.(EAX=8000_0001h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	if (c & (1 << 17))
+		printf("tce ");
+	if (c & (1 << 29))
+		printf("monitorx ");
         printf("\n");
 
 	/* Fn8000_0008_EBX Extended Feature Identifiers */
@@ -112,6 +163,8 @@ int main(int argc, char *argv[]) {
 	/* Fn8000_0021_EAX Extended Feature Identification 2 */
         __cpuid_count(0x80000021, 0, a, b, c, d);
         printf("CPUID.(EAX=8000_0021h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	if (a & (1 << 2))
+		printf("LFenceAlwaysSerializing ");
 	if (a & (1 << 8))
 		printf("AutomaticIBRS ");
 	printf("\n");
