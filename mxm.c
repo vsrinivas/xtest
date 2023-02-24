@@ -13,19 +13,22 @@ void multiply(uint32_t *C, const uint32_t *A, const uint32_t *B,
               int a_rows, int a_cols, int b_cols)
 {
         int i, j, k;
-	#define blocksize (64)
+	#define blocksize (128)
 	int jb, kb;
 
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
 	for (int ii = 0; ii < a_rows; ii += blocksize) {
 		for (int jj = 0; jj < b_cols; jj += blocksize) {
 			for (int kk = 0; kk < a_cols; kk += blocksize) {
-				uint32_t BB[blocksize][blocksize] = {};
+				uint32_t BB[blocksize][blocksize];
 				jb=0;
-				for (j = jj; j < jj + blocksize; j++, jb++) {
-					for (k = kk, kb = 0; k < kk + blocksize; k++, kb++) {
+				for (j = jj; j < jj + blocksize; j++) {
+					kb=0;
+					for (k = kk; k < kk + blocksize; k++) {
 						BB[jb][kb] = *V(B, k, j, b_cols);
+						kb++;
 					}
+					jb++;
 				}
 
 

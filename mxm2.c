@@ -16,8 +16,9 @@ void multiply(uint32_t *C, const uint32_t *A, const uint32_t *B,
 
 #pragma omp parallel for schedule(dynamic)
 	for (i = 0; i < a_rows; i++) {
+		const uint32_t *KK = V(A, i, 0, a_cols);
                 for (k = 0; k < a_cols; k++) {
-			const uint32_t K = *V(A, i, k, a_cols);
+			const uint32_t K = KK[k];
 #pragma omp simd
                 	for (j = 0; j < b_cols; j++) {
                                 *V(C, i, j, b_cols) += K *
