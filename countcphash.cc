@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 {
 	int i;
 
-	i = nftw(argv[1], cb, 64, FTW_PHYS);
+	i = nftw(argv[1], cb, 64, 0);
 	if (i) {
 		printf("%d err %d\n", i, errno);
 	}

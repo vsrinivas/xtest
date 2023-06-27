@@ -3,7 +3,6 @@ MD5=\
 
 THREADS=\
 	barrier.o \
-	defer.o \
 	pwq.o \
 	workqueue.o
 
