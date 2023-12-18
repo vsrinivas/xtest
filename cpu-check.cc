@@ -20,6 +20,7 @@
 
 #ifdef __x86_64__
 extern "C" void _zencpy(void *dst, void *src, size_t len);
+extern "C" void vcopy(void *dst, void *src, size_t len);
 
 static void
 rep_movsb(unsigned char* dst, unsigned char const* src, size_t n) {
@@ -192,11 +193,13 @@ int main(int argc, char *argv[]) {
     printf("Source (cpu %d) jhash %x hash %lx mhash %x...\n", rotor, jhash0, hash0, mhash0);
 #endif
 #ifdef __x86_64__
-    int t = loops % 3;
+    int t = loops % 4;
     if (t == 0) {
       rep_movsb(dst, data_src.data(), data_src.size());
     } else if (t == 1) {
       _zencpy(dst, data_src.data(), data_src.size());
+    } else if (t == 2) {
+      vcopy(dst, data_src.data(), data_src.size());
     } else {
       memcpy(dst, data_src.data(), data_src.size());
     }

@@ -1,23 +1,22 @@
 #include <stdio.h>
-#include <unistd.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
-// wait until loadavg < 1.5 . if opt arg is passed in, max minutes to wait.
+// wait until loadavg < 1.5 . if opt arg is passed in, max sec to wait.
 main(int argc, char *argv[]) {
 	char buf[180];
 	char *ind;
 	FILE *f;
 	char *x, *y, *z, *q;
 	double d;
-	int minutes = 0;
-	int maxminutes;
+	int secs = 0;
+	int maxsecs;
 
 	if (argc > 1)
-		maxminutes = atoi(argv[1]);
+		maxsecs = atoi(argv[1]);
 	else
-		maxminutes = INT_MAX;
+		maxsecs = INT_MAX;
 
 	for (;;) {
 		bzero(buf, 180);
@@ -45,12 +44,10 @@ main(int argc, char *argv[]) {
 #endif
 		if (d < 1.5)
 			break;
-		if (access("/tmp/xwait_greenlight", R_OK) == 0)
-			break;
 
-		sleep(60);
-		minutes++;
-		if (minutes >= maxminutes)
+		sleep(1);
+		secs++;
+		if (secs >= maxsecs)
 			break;
 	}
 }

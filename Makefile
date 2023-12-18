@@ -56,14 +56,14 @@ leveldb_to_bdb:
 bdb_to_leveldb:
 	$(CXX) -o bdb_to_leveldb bdb_to_leveldb.cc -lleveldb -lsnappy -ldb
 
-cpu-check-medium.exe: hashes.o murmur3.o zencpy.o
-	$(CXX) -o cpu-check-medium.exe cpu-check.cc hashes.o murmur3.o zencpy.o -DN=4294967296UL  -O2 -DDEBUG -g -march=native -DPARALLEL -pthread
+cpu-check-medium.exe: hashes.o murmur3.o zencpy.o vcopy.o
+	$(CXX) -o cpu-check-medium.exe cpu-check.cc hashes.o murmur3.o zencpy.o vcopy.o -DN=4294967296UL  -O2 -DDEBUG -g -march=native -DPARALLEL -pthread
 
-cpu-check-small.exe: hashes.o murmur3.o zencpy.o
-	$(CXX) -o cpu-check-small.exe cpu-check.cc hashes.o murmur3.o zencpy.o -DN=1048576UL  -O2 -DDEBUG -g -march=native -DPARALLEL -pthread
+cpu-check-small.exe: hashes.o murmur3.o zencpy.o vcopy.o
+	$(CXX) -o cpu-check-small.exe cpu-check.cc hashes.o murmur3.o zencpy.o vcopy.o -DN=1048576UL  -O2 -DDEBUG -g -march=native -DPARALLEL -pthread
 
-cpu-check-serial.exe: hashes.o murmur3.o zencpy.o
-	$(CXX) -o cpu-check-serial.exe cpu-check.cc hashes.o murmur3.o zencpy.o -DN=1048576UL  -O2 -DDEBUG -g -march=native
+cpu-check-serial.exe: hashes.o murmur3.o zencpy.o vcopy.o
+	$(CXX) -o cpu-check-serial.exe cpu-check.cc hashes.o murmur3.o zencpy.o vcopy.o -DN=1048576UL  -O2 -DDEBUG -g -march=native
 
 
 # Parallel wordcount; RC 2018.
