@@ -7,7 +7,6 @@ brcond:
 	decq %rax
 	jz 1f		// skip the load when the ctr decrements to 0
 	lfence
-	lock addq $0, (%rdi)
-	//movq (%rdi), %rcx
+	movq (%rdi), %rcx
 	nop
 1:	ret

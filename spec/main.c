@@ -3,7 +3,7 @@
 #include <x86intrin.h>
 
 uint64_t safe;
-uint64_t standoff[64];
+uint64_t standoff[604];
 uint64_t buffer;
 
 uint64_t load(uint64_t *);
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 	// uncached access time
 	lo = INT_MAX, hi = 0, sum = 0;
 	for (i = 0; i < 1000; i++) {
-		_mm_clflush(&buffer);
+		_mm_clflush(&buffer); asm volatile("sfence" ::: "memory");
 		a = now();
 		load(&buffer);
 		b = now();
@@ -75,10 +75,10 @@ int main(int argc, char *argv[]) {
 
 	// speculation demo
 	lo = INT_MAX, hi = 0, sum = 0;
-	ctr_max = 1129, ctr = ctr_max;
+	ctr_max = 11129, ctr = ctr_max;
 	for (i = 0; i < 1000; i++) {
 		load(&safe);
-		_mm_clflush(&buffer);
+		_mm_clflush(&buffer); asm volatile("sfence" ::: "memory");
 		ctr = ctr_max;
 		for (j = 0; j < ctr_max; j++) {
 			p = (ctr) ? &safe : &buffer;
@@ -92,6 +92,7 @@ int main(int argc, char *argv[]) {
 		if (lo > c) lo = c;
 		if (hi < c) hi = c;
 		sum += c;
+		asm volatile("lfence":::"memory");
 	}
 		// if lo overlaps w/ the cached access time, the branch
 		// in brcond() was mispredicted and a speculative access to |buffer|
