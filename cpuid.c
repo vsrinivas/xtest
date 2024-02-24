@@ -158,6 +158,8 @@ int main(int argc, char *argv[]) {
                 printf("psfd ");
         if (b & (1 << 29))
                 printf("BTC_NO ");
+	if (b & (1 << 30))
+		printf("IBPB_RET ");
         printf("\n");
 
 	/* Fn8000_0021_EAX Extended Feature Identification 2 */
@@ -165,7 +167,19 @@ int main(int argc, char *argv[]) {
         printf("CPUID.(EAX=8000_0021h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
 	if (a & (1 << 2))
 		printf("LFenceAlwaysSerializing ");
+	if (a & (1 << 7))
+		printf("UpperAddressIgnore ");
 	if (a & (1 << 8))
 		printf("AutomaticIBRS ");
+	if (a & (1 << 27))
+		printf("SBPB ");
+	if (a & (1 << 28))
+		printf("IBPB_BRTYPE ");
+	if (a & (1 << 29))
+		printf("SRSO_NO ");
+	if (a & (1 << 30))
+		printf("SRSO_USER_KERNEL_NO ");
+	if (a & (1 << 31))
+		printf("SRSO_MSR_FIX ");
 	printf("\n");
 }
