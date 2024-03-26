@@ -24,6 +24,7 @@
 #ifdef __x86_64__
 extern "C" void _zencpy(void *dst, void *src, size_t len);
 extern "C" void vcopy(void *dst, void *src, size_t len);
+extern "C" void vcopy2(void *dst, void *src, size_t len);
 
 static void rep_movsb(unsigned char *dst, unsigned char const *src, size_t n) {
   __asm__ __volatile__("rep movsb"
@@ -70,7 +71,6 @@ void randomize(std::vector<uint8_t> &v, int ref) {
 extern "C" uint32_t murmur3_32(const uint8_t *key, size_t len, uint32_t seed);
 
 struct args {
-  uint32_t jhash;
   uint64_t hash;
   uint32_t mhash;
   uint128 city_hash;
@@ -105,20 +105,15 @@ void check(int cpu) {
       continue;
     }
 
-    uint32_t jhash = jenkins_one_at_a_time_hash((const uint8_t *)g_args.dst,
-                                                g_args.dst_size);
     uint64_t hash = FNV1A_64((const char *)g_args.dst, g_args.dst_size);
     uint32_t mhash =
         murmur3_32((const uint8_t *)g_args.dst, g_args.dst_size, 0x1);
     uint128 city_hash = CityHashCrc128((const char*) g_args.dst, g_args.dst_size);
 #ifdef DEBUG
-    printf("Validate buffer (source cpu %d target cpu %d align %lu (jhash %x "
+    printf("Validate buffer (source cpu %d target cpu %d align %lu ("
            "hash %lx mhash %x)...\n",
-           rotor.load(), cpu, ((uintptr_t)g_args.dst) & (64 - 1), jhash, hash, mhash);
+           rotor.load(), cpu, ((uintptr_t)g_args.dst) & (64 - 1), hash, mhash);
 #endif
-    if (g_args.jhash != jhash) {
-      abort();
-    }
     if (g_args.hash != hash) {
       abort();
     }
@@ -138,10 +133,11 @@ void check(int cpu) {
 //
 // For each cpu
 // 	fill a random buffer;
-// 	hash it ( both fnv1a, jenkins, murmur one-at-a-time hashes )
+// 	hash it ( fnv1a, murmur one-at-a-time hashes, Cityhash )
 //	make a copy of it into the destination buffer (misaligned if possible)
+//	   uses one of five copy routines; rep movsb, movsq+movsb, memcpy, sse, avx(256-bit)
 //	for each cpu (in parallel optionally):
-//		hash the copy (fnv1a, jenkins, murmur)
+//		hash the copy (fnv1a, murmur, cityhash)
 //		compare the hash to the originally computed hash;
 //	move back to the source cpu
 //	re-hash the source and destination buffers
@@ -157,7 +153,6 @@ void check(int cpu) {
 // ./cpu_check <N> <max_loops>
 int main(int argc, char *argv[]) {
   std::vector<uint8_t> data_src, data_dst;
-  volatile uint32_t jhash0;
   volatile uint64_t hash0;
   volatile uint32_t mhash0;
   uint128 city_hash0;
@@ -197,23 +192,23 @@ int main(int argc, char *argv[]) {
     printf("Randomize buffer... (source cpu %d)\n", rotor.load());
 #endif
     randomize(data_src, loops);
-    jhash0 = jenkins_one_at_a_time_hash((const uint8_t *)data_src.data(),
-                                        data_src.size());
     hash0 = FNV1A_64((const char *)data_src.data(), data_src.size());
     mhash0 = murmur3_32((const uint8_t *)data_src.data(), data_src.size(), 0x1);
     city_hash0 = CityHashCrc128((const char *)data_src.data(), data_src.size());
 #ifdef DEBUG
-    printf("Source (cpu %d) jhash %x hash %lx mhash %x...\n", rotor.load(), jhash0,
+    printf("Source (cpu %d) hash %lx mhash %x...\n", rotor.load(),
            hash0, mhash0);
 #endif
 #ifdef __x86_64__
-    int t = loops % 4;
+    int t = loops % 5;
     if (t == 0) {
       rep_movsb(dst, data_src.data(), data_src.size());
     } else if (t == 1) {
       _zencpy(dst, data_src.data(), data_src.size());
     } else if (t == 2) {
       vcopy(dst, data_src.data(), data_src.size());
+    } else if (t == 3) {
+      vcopy2(dst, data_src.data(), data_src.size());
     } else {
       memcpy(dst, data_src.data(), data_src.size());
     }
@@ -222,7 +217,6 @@ int main(int argc, char *argv[]) {
 #endif
 
     g_ack = cpus;
-    g_args.jhash = jhash0;
     g_args.hash = hash0;
     g_args.mhash = mhash0;
     g_args.city_hash = city_hash0;
@@ -239,13 +233,8 @@ int main(int argc, char *argv[]) {
     printf("Check buffers (source cpu %d)...\n", rotor.load());
 #endif
     // Back on the source CPU; quick check the src/dst buffers once again
-    uint32_t jhash =
-        jenkins_one_at_a_time_hash(data_src.data(), data_src.size());
-    if (jhash0 != jhash) {
-      abort();
-    }
-    jhash = jenkins_one_at_a_time_hash(dst, dst_size);
-    if (jhash0 != jhash) {
+    uint64_t hash = FNV1A_64((const char *)data_src.data(), data_src.size());
+    if (hash0 != hash) {
       abort();
     }
     rotor++;
