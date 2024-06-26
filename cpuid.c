@@ -95,6 +95,8 @@ int main(int argc, char *argv[]) {
 	/* CPUID.(EAX=07h,ECX=1) */
 	__cpuid_count(0x7, 0x1, a, b, c, d);
         printf("CPUID.(EAX=07h,ECX=1) %lx %lx %lx %lx\n", a, b, c, d);
+	if (a & (1 << 6))
+		printf("lass ");
 	if (a & (1 << 10))
 		printf("fast_zero_rep_movsb ");
 	if (a & (1 << 11))
@@ -103,6 +105,22 @@ int main(int argc, char *argv[]) {
 		printf("fast_short_rep_cmpsb_scasb ");
 	if (a & (1 << 21))
 		printf("amx-fp16 ");
+	if (a & (1 << 22))
+		printf("hreset ");
+	if (a & (1 << 23))
+		printf("avx-ifma ");
+	if (a & (1 << 26))
+		printf("lam ");
+	if (a & (1 << 27))
+		printf("msrlist ");
+	if (a & (1 << 30))
+		printf("invd_disable_post_bios_done ");
+	if (d & (1 << 13))
+		printf("utmr ");
+	if (d & (1 << 14))
+		printf("prefetchi ");
+	if (d & (1 << 15))
+		printf("user_msr ");
 	printf("\n");
 
 	/* CPUID.(EAX=07h,ECX=2) */
@@ -118,6 +136,8 @@ int main(int argc, char *argv[]) {
 		printf("bhi_ctrl ");
 	if (d & (1 << 5))
 		printf("mcdt_no ");
+	if (d & (1 << 7))
+		printf("monitor_mitg_no ");
         printf("\n");
 
 	/* Fn8000_0001 Extended Processor Info and Feature Bits */
@@ -134,6 +154,8 @@ int main(int argc, char *argv[]) {
         printf("CPUID.(EAX=8000_0008h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
         if (b & (1 << 12))
                 printf("ibpb ");
+	if (b & (1 << 13))
+		printf("wbinvd_int ");
         if (b & (1 << 14))
                 printf("ibrs ");
         if (b & (1 << 15))
@@ -171,6 +193,10 @@ int main(int argc, char *argv[]) {
 		printf("UpperAddressIgnore ");
 	if (a & (1 << 8))
 		printf("AutomaticIBRS ");
+	if (a & (1 << 13))
+		printf("PrefetchCtlMsr ");
+	if (a & (1 << 18))
+		printf("EPSF ");
 	if (a & (1 << 27))
 		printf("SBPB ");
 	if (a & (1 << 28))
