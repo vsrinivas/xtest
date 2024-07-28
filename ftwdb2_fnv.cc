@@ -42,7 +42,7 @@ char *xhash(const char *path) {
         munmap(p, sb.st_size);
 	q = (char*)malloc(17);
 	bzero(q, 17);
-	sprintf(q, "%16llx", qq);
+	sprintf(q, "%016llx", qq);
         close(fd);
         return q;
 }
@@ -70,7 +70,7 @@ int cb(const char *path, const struct stat *sb, int typeflag, struct FTW *) {
 		}
 		printf("==> %s, %s\n", path, val);
 
-		leveldb::Slice value(val, 32 + 1);
+		leveldb::Slice value(val, 17);
 
 		++nFiles;
 		auto s = db->Put(leveldb::WriteOptions(), key, value);

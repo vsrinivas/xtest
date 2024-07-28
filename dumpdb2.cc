@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -38,6 +38,7 @@ int main(int argc, char* argv[])
 		free(value);
 		++nFiles;
 	}
+	delete it;
 
 	printf("%d files\n", nFiles);
 	delete leveldb;
