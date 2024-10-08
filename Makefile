@@ -50,6 +50,9 @@ dbmerge: dbmerge.o
 dbtransactor: dbtransactor.o
 	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
 
+dumpdb2: dumpdb2.o
+	$(CXX) $(LDFLAGS) -o $@ $^ -lleveldb -lsnappy -lssl -lcrypto
+
 leveldb_to_bdb:
 	$(CXX) -o leveldb_to_bdb leveldb_to_bdb.cc -lleveldb -lsnappy -ldb
 

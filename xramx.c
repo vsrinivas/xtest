@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <emmintrin.h>
-
+#include <stdio.h>
 
 #define KB (1024)
 #define MB (1024 * KB)
@@ -14,12 +14,11 @@ unsigned long pattern(unsigned long l) {
 	return (l) | ((~l) << 32);
 }
 
-void CHECK_EQ(unsigned long x, unsigned long y, char *err) {
-	if (x != y) {
-		printf("CHECK FAILED %s: %lx != %lx\n", err, x, y);
-		abort();
+#define CHECK_EQ(_x, _y)	\
+	if ((_x) != (_y)) {	\
+		printf("%s:%d Check failed: %lx != %lx\n", __FILE__, __LINE__, _x, _y);	\
+		abort();	\
 	}
-}
 
 int main(int argc, char *argv[]) {
 	unsigned long l;
@@ -38,23 +37,21 @@ int main(int argc, char *argv[]) {
 	memset(p, 0, size);
 	
 	rc = mlock(p, size);
-	CHECK_EQ(rc, 0, "");
+	CHECK_EQ(rc, 0);
 
 	for (l = 0; l < n; l++) {
 		p[l] = pattern(l);
-		CHECK_EQ(p[l], pattern(l), "");
+		CHECK_EQ(p[l], pattern(l));
 		_mm_clflush(&p[l]);
-		CHECK_EQ(p[l], pattern(l), "");
+		asm volatile("pause ; lfence ; sfence" ::: "memory");
+		CHECK_EQ(p[l], pattern(l));
+		asm volatile("pause ; lfence ; sfence" ::: "memory");
 	}
-	int i = 0;
 	for (;;) {
 		for (l = 0; l < n; l++) {
-			char b[32];
-			snprintf(b, 32, "%d: p[%lx]", i, l);
-			CHECK_EQ(p[l], pattern(l), b);
+			CHECK_EQ(p[l], pattern(l));
 			asm volatile("pause ; lfence" ::: "memory");
 		}
-		i++;
 		sleep(16);
 	}
 }
