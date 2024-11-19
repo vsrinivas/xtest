@@ -195,8 +195,16 @@ int main(int argc, char *argv[]) {
 		printf("AutomaticIBRS ");
 	if (a & (1 << 13))
 		printf("PrefetchCtlMsr ");
+	if (a & (1 << 15))
+		printf("AMD_ERMSB ");
 	if (a & (1 << 18))
 		printf("EPSF ");
+	if (a & (1 << 19))
+		printf("FAST_REP_SCASB ");
+	if (a & (1 << 20))
+		printf("PREFETCHI ");
+	if (a & (1 << 21))
+		printf("FP512_DOWNGRADE ");
 	if (a & (1 << 24))
 		printf("ERAPS ");
 	if (a & (1 << 27))
