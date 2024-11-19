@@ -197,6 +197,8 @@ int main(int argc, char *argv[]) {
 		printf("PrefetchCtlMsr ");
 	if (a & (1 << 18))
 		printf("EPSF ");
+	if (a & (1 << 24))
+		printf("ERAPS ");
 	if (a & (1 << 27))
 		printf("SBPB ");
 	if (a & (1 << 28))
