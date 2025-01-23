@@ -187,8 +187,12 @@ int main(int argc, char *argv[]) {
 	/* Fn8000_0021_EAX Extended Feature Identification 2 */
         __cpuid_count(0x80000021, 0, a, b, c, d);
         printf("CPUID.(EAX=8000_0021h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	if (a & (1 << 0))
+		printf("NoNestedDataBp ");
 	if (a & (1 << 2))
 		printf("LFenceAlwaysSerializing ");
+	if (a & (1 << 6))
+		printf("NullSelectClearsBase ");
 	if (a & (1 << 7))
 		printf("UpperAddressIgnore ");
 	if (a & (1 << 8))
@@ -197,6 +201,8 @@ int main(int argc, char *argv[]) {
 		printf("PrefetchCtlMsr ");
 	if (a & (1 << 15))
 		printf("AMD_ERMSB ");
+	if (a & (1 << 17))
+		printf("CpuidUserDis ");
 	if (a & (1 << 18))
 		printf("EPSF ");
 	if (a & (1 << 19))

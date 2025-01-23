@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#define KPAGE_SIZE ((4096 * 4096))
+#define KPAGE_MASK ((KPAGE_SIZE) - 1)
 #define KB (1024)
 #define MB (1024 * KB)
 
@@ -19,11 +21,12 @@ unsigned long pattern(unsigned long l) {
 	}
 
 int main(int argc, char *argv[]) {
-	unsigned long l;
+	unsigned long l, m;
 	unsigned long *p;
 	unsigned long size;
 	unsigned long n;
 	int rc;
+	int match;
 
 	if (argc == 1)
 		size = 1 * MB;
@@ -41,11 +44,24 @@ int main(int argc, char *argv[]) {
 		p[l] = pattern(l);
 		CHECK_EQ(p[l], pattern(l));
 	}
-	for (;;) {
-		for (l = 0; l < n; l++) {
-			CHECK_EQ(p[l], pattern(l));
+	asm volatile("pause ; lfence" ::: "memory");
+	unsigned long step = KPAGE_SIZE / sizeof(unsigned long);
+	for (l = 0; l < n; l += step) {
+		void *pp = &p[l];
+		match = 0;
+		for (m = 0; m < step; m++) {
 			asm volatile("pause ; lfence" ::: "memory");
+			if (p[m] != pattern(m)) {
+				match = 1;
+				break;
+			} else {
+				p[m] = 0;
+			}
 		}
-		sleep(60);
+		if (!match) {
+			munlock(pp, KPAGE_SIZE);
+			madvise(pp, KPAGE_SIZE, MADV_FREE);
+		}
+
 	}
 }
