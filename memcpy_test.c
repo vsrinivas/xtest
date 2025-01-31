@@ -1,5 +1,6 @@
 #include <sys/types.h>
 
+#include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
@@ -29,5 +30,22 @@ void test(void *(*fn)(void *, void *, size_t)) {
 
 
 int main(int argc, char *argv[]) {
+	printf("memcpy ===>\n");
 	test(memcpy);
+
+	printf("_zencpy ===>\n");
+	void *_zencpy(void *, void *, size_t);
+	test(_zencpy);
+	
+	printf("_zencpy2 ===>\n");
+	void *_zencpy2(void *, void *, size_t);
+	test(_zencpy2);
+	
+	printf("vcopy ===>\n");
+	void *vcopy(void *, void *, size_t);
+	test(vcopy);
+	
+	printf("vcopy2 ===>\n");
+	void *vcopy2(void *, void *, size_t);
+	test(vcopy2);
 }

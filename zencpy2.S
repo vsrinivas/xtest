@@ -8,8 +8,14 @@ _zencpy2:
 	movq	%rdx, %rcx
 	shrq	$3, %rcx
 	andq	$7, %rdx
-	rep movsq
+lp:	movq	(%rsi), %rax
+	movnti	%rax, (%rdi)
+	addq	$8, %rsi
+	addq	$8, %rdi
+	subq	$1, %rcx
+	jnz	lp
 1:	movq	%rdx, %rcx
 	rep movsb
+	sfence
 	ret
 
