@@ -88,11 +88,14 @@ hashes_test: hashes.o hashes_test.o
 pwq_test: pwq_test.o $(THREADS)
 	$(CXX) $(LDFLAGS) -o $@ pwq_test.o $(THREADS) -pthread
 
+memcpy_test: memcpy_test.o vcopy.o vcopy2.o zencpy.o zencpy2.o
+
 .PHONY: check
-check: hashes_test pwq_test cpuid $(CMDS)
+check: hashes_test pwq_test cpuid memcpy_test $(CMDS)
 	./hashes_test
 	./pwq_test
 	./cpuid
+	./memcpy_test
 	./cpu-check-small.exe 65536 16
 	$(MAKE) -C san check
 

@@ -17,12 +17,13 @@
 #define MB 1024ul * KB
 #define GB 1024ul * MB
 
-#ifndef N // Buffer size
+#ifndef N // Default buffer size
 #define N (1 * GB)
 #endif
 
 #ifdef __x86_64__
 extern "C" void _zencpy(void *dst, void *src, size_t len);
+extern "C" void _zencpy2(void *dst, void *src, size_t len);
 extern "C" void vcopy(void *dst, void *src, size_t len);
 extern "C" void vcopy2(void *dst, void *src, size_t len);
 
@@ -149,8 +150,8 @@ void check(int cpu) {
 // build that code on a target environment where i had memtest86 report bad
 // memory, so I wanted to test it via other mechanisms.
 //
-// c++ cpu-check-simple-v2.cc hashes.c murmur3.c  zencpy.S -pthread -DPARALLEL
-// ./cpu_check <N> <max_loops>
+// c++ -o pcpucheck pcpucheck.cc hashes.c murmur3.c  zencpy.S zencpy2.S -pthread -DPARALLEL
+// ./pcpucheck <N> <max_loops>
 int main(int argc, char *argv[]) {
   std::vector<uint8_t> data_src, data_dst;
   volatile uint64_t hash0;
@@ -200,7 +201,7 @@ int main(int argc, char *argv[]) {
            hash0, mhash0);
 #endif
 #ifdef __x86_64__
-    int t = loops % 5;
+    int t = loops % 6;
     if (t == 0) {
       rep_movsb(dst, data_src.data(), data_src.size());
     } else if (t == 1) {
@@ -209,6 +210,8 @@ int main(int argc, char *argv[]) {
       vcopy(dst, data_src.data(), data_src.size());
     } else if (t == 3) {
       vcopy2(dst, data_src.data(), data_src.size());
+    } else if (t == 4) {
+      _zencpy2(dst, data_src.data(), data_src.size());
     } else {
       memcpy(dst, data_src.data(), data_src.size());
     }
