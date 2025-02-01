@@ -10,8 +10,9 @@
 #include <unistd.h>
 #include <vector>
 
-#include <city.h>
-#include <citycrc.h>
+#ifdef __x86_64__
+#include <emmintrin.h>
+#endif
 
 #define KB 1024ul
 #define MB 1024ul * KB
@@ -27,7 +28,7 @@ extern "C" void _zencpy2(void *dst, void *src, size_t len);
 extern "C" void vcopy(void *dst, void *src, size_t len);
 extern "C" void vcopy2(void *dst, void *src, size_t len);
 
-static void rep_movsb(unsigned char *dst, unsigned char const *src, size_t n) {
+static void rep_movsb(void *dst, void *src, size_t n) {
   __asm__ __volatile__("rep movsb"
                        : "+D"(dst), "+S"(src), "+c"(n)
                        :
@@ -37,8 +38,16 @@ static void rep_movsb(unsigned char *dst, unsigned char const *src, size_t n) {
 
 void xpause() {
 #ifdef __x86_64__
-  __builtin_ia32_lfence();
   __builtin_ia32_pause();
+#endif
+}
+
+void flush(void *p, size_t size) {
+#ifdef __x86_64__
+  for (size_t i = 0; i < size; i += 64) {
+    _mm_clflush((char *)p + i);
+  }
+  asm volatile("sfence" ::: "memory");
 #endif
 }
 
@@ -60,7 +69,7 @@ void randomize(std::vector<uint8_t> &v, int ref) {
 
   for (size_t i = 0; i < qwords; i += sizeof(uint64_t)) {
     for (int j = 0; j < sizeof(uint64_t); j++) {
-      val[i] = 0xAA + ref + ((i + j) & 0xff);
+      val[j] = 0xAA + ref + ((i + j) & 0xff);
     }
     memcpy(v.data() + i, val, sizeof(val));
   }
@@ -74,17 +83,38 @@ extern "C" uint32_t murmur3_32(const uint8_t *key, size_t len, uint32_t seed);
 struct args {
   uint64_t hash;
   uint32_t mhash;
-  uint128 city_hash;
   void *dst;
   size_t dst_size;
 };
-static std::atomic<uint32_t> g_go = 0;
-static std::atomic<uint32_t> g_ack = 0;
-static std::atomic<bool> g_should_exit = false;
-static std::atomic<int> rotor = 0;
+static std::atomic<uint32_t> g_go;
+static std::atomic<uint32_t> g_ack;
+static std::atomic<bool> g_should_exit;
+static std::atomic<int> rotor;
 struct args g_args;
 
-void check(int cpu) {
+static void pickmemcpy(void *dst, void *src, size_t size) {
+#ifdef __x86_64__
+    static __thread int loops;
+    int t = loops++ % 6;
+    if (t == 0) {
+      rep_movsb(dst, src, size);
+    } else if (t == 1) {
+      _zencpy(dst, src, size);
+    } else if (t == 2) {
+      vcopy(dst, src, size);
+    } else if (t == 3) {
+      vcopy2(dst, src, size);
+    } else if (t == 4) {
+      _zencpy2(dst, src, size);
+    } else {
+      memcpy(dst, src, size);
+    }
+#else
+    memcpy(dst, data_src.data(), data_src.size());
+#endif
+}
+
+static void check(int cpu) {
   uint32_t last = 0;
   move(cpu);
 
@@ -98,18 +128,10 @@ void check(int cpu) {
       usleep(1);
       continue;
     }
-    if (cpu == rotor) {
-      xpause();
-      usleep(1);
-      last = g_go;
-      g_ack--;
-      continue;
-    }
 
     uint64_t hash = FNV1A_64((const char *)g_args.dst, g_args.dst_size);
     uint32_t mhash =
         murmur3_32((const uint8_t *)g_args.dst, g_args.dst_size, 0x1);
-    uint128 city_hash = CityHashCrc128((const char*) g_args.dst, g_args.dst_size);
 #ifdef DEBUG
     printf("Validate buffer (source cpu %d target cpu %d align %lu ("
            "hash %lx mhash %x)...\n",
@@ -119,9 +141,6 @@ void check(int cpu) {
       abort();
     }
     if (g_args.mhash != mhash) {
-      abort();
-    }
-    if (g_args.city_hash != city_hash) {
       abort();
     }
 
@@ -134,11 +153,11 @@ void check(int cpu) {
 //
 // For each cpu
 // 	fill a random buffer;
-// 	hash it ( fnv1a, murmur one-at-a-time hashes, Cityhash )
+// 	hash it ( fnv1a, murmur one-at-a-time hashes )
 //	make a copy of it into the destination buffer (misaligned if possible)
-//	   uses one of five copy routines; rep movsb, movsq+movsb, memcpy, sse, avx(256-bit)
+//	   uses one of six copy routines; rep movsb, movsq+movsb, movnti, memcpy, sse, avx(256-bit)
 //	for each cpu (in parallel optionally):
-//		hash the copy (fnv1a, murmur, cityhash)
+//		hash the copy (fnv1a, murmur)
 //		compare the hash to the originally computed hash;
 //	move back to the source cpu
 //	re-hash the source and destination buffers
@@ -153,10 +172,10 @@ void check(int cpu) {
 // c++ -o pcpucheck pcpucheck.cc hashes.c murmur3.c  zencpy.S zencpy2.S -pthread -DPARALLEL
 // ./pcpucheck <N> <max_loops>
 int main(int argc, char *argv[]) {
-  std::vector<uint8_t> data_src, data_dst;
+  std::vector<uint8_t> data_src, data_dst, witness;
   volatile uint64_t hash0;
   volatile uint32_t mhash0;
-  uint128 city_hash0;
+  uint64_t witness_hash_0, witness_hash_1;
   uint32_t loops = 0;
   int cpus;
   size_t size;
@@ -184,6 +203,10 @@ int main(int argc, char *argv[]) {
 
   data_src.resize(size);
   data_dst.resize(size + MAX_MISALIGN);
+  witness.resize(8 * MB);
+  randomize(witness, 1);
+  flush(witness.data(), witness.size());
+  witness_hash_0 = FNV1A_64((const char *) witness.data(), witness.size());
   for (loops = 0; loops < max_loops; loops++) {
     uint8_t *const dst = data_dst.data() + misalign;
     size_t dst_size = size;
@@ -195,41 +218,22 @@ int main(int argc, char *argv[]) {
     randomize(data_src, loops);
     hash0 = FNV1A_64((const char *)data_src.data(), data_src.size());
     mhash0 = murmur3_32((const uint8_t *)data_src.data(), data_src.size(), 0x1);
-    city_hash0 = CityHashCrc128((const char *)data_src.data(), data_src.size());
 #ifdef DEBUG
     printf("Source (cpu %d) hash %lx mhash %x...\n", rotor.load(),
            hash0, mhash0);
 #endif
-#ifdef __x86_64__
-    int t = loops % 6;
-    if (t == 0) {
-      rep_movsb(dst, data_src.data(), data_src.size());
-    } else if (t == 1) {
-      _zencpy(dst, data_src.data(), data_src.size());
-    } else if (t == 2) {
-      vcopy(dst, data_src.data(), data_src.size());
-    } else if (t == 3) {
-      vcopy2(dst, data_src.data(), data_src.size());
-    } else if (t == 4) {
-      _zencpy2(dst, data_src.data(), data_src.size());
-    } else {
-      memcpy(dst, data_src.data(), data_src.size());
-    }
-#else
-    memcpy(dst, data_src.data(), data_src.size());
-#endif
+    pickmemcpy(dst, data_src.data(), data_src.size());
 
     g_ack = cpus;
     g_args.hash = hash0;
     g_args.mhash = mhash0;
-    g_args.city_hash = city_hash0;
     g_args.dst = dst;
     g_args.dst_size = dst_size;
     g_go = loops + 1; // Release all other CPUs;
     // Wait for every CPU to checksum buffers;
     while (g_ack.load() != 0) {
       xpause();
-      usleep(1);
+      usleep(5);
     }
 
 #ifdef DEBUG
@@ -246,6 +250,12 @@ int main(int argc, char *argv[]) {
     misalign++;
     if (misalign == MAX_MISALIGN)
       misalign = 0;
+
+    if (misalign == 0) {  // Once in a while, check the witness buffer.
+      witness_hash_1 = FNV1A_64((const char *) witness.data(), witness.size());
+      if (witness_hash_0 != witness_hash_1)
+        abort();
+    }
   }
 
   g_should_exit = true;

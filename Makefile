@@ -25,10 +25,6 @@ CMDS=\
 	while \
 	whilehammer \
 	xwait \
-	\
-	cpu-check-medium.exe \
-	cpu-check-small.exe \
-	cpu-check-serial.exe
 
 .PHONY: default
 default: $(CMDS)
@@ -59,15 +55,8 @@ leveldb_to_bdb:
 bdb_to_leveldb:
 	$(CXX) -o bdb_to_leveldb bdb_to_leveldb.cc -lleveldb -lsnappy -ldb
 
-cpu-check-medium.exe: hashes.o murmur3.o zencpy.o vcopy.o
-	$(CXX) -o cpu-check-medium.exe cpu-check.cc hashes.o murmur3.o zencpy.o vcopy.o -DN=4294967296UL  -O2 -DDEBUG -g -march=native -DPARALLEL -pthread
-
-cpu-check-small.exe: hashes.o murmur3.o zencpy.o vcopy.o
-	$(CXX) -o cpu-check-small.exe cpu-check.cc hashes.o murmur3.o zencpy.o vcopy.o -DN=1048576UL  -O2 -DDEBUG -g -march=native -DPARALLEL -pthread
-
-cpu-check-serial.exe: hashes.o murmur3.o zencpy.o vcopy.o
-	$(CXX) -o cpu-check-serial.exe cpu-check.cc hashes.o murmur3.o zencpy.o vcopy.o -DN=1048576UL  -O2 -DDEBUG -g -march=native
-
+pcpucheck: pcpucheck.o vcopy.o vcopy2.o zencpy.o zencpy2.o murmur3.o hashes.o
+	$(CXX) -o pcpucheck $^
 
 # Parallel wordcount; RC 2018.
 pwc:	pwc.o
@@ -96,7 +85,7 @@ check: hashes_test pwq_test cpuid memcpy_test $(CMDS)
 	./pwq_test
 	./cpuid
 	./memcpy_test
-	./cpu-check-small.exe 65536 16
+	./pcpucheck 65536 16
 	$(MAKE) -C san check
 
 .PHONY: clean
