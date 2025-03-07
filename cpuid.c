@@ -143,8 +143,14 @@ int main(int argc, char *argv[]) {
 	/* Fn8000_0001 Extended Processor Info and Feature Bits */
         __cpuid_count(0x80000001, 0, a, b, c, d);
         printf("CPUID.(EAX=8000_0001h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	if (c & (1 << 2))
+		printf("SVM ");
+	if (c & (1 << 10))
+		printf("IBS ");
 	if (c & (1 << 17))
 		printf("tce ");
+	if (c & (1 << 23))
+		printf("PerfCtrExtCore ");
 	if (c & (1 << 29))
 		printf("monitorx ");
         printf("\n");
@@ -184,7 +190,53 @@ int main(int argc, char *argv[]) {
 		printf("IBPB_RET ");
         printf("\n");
 
-	/* Fn8000_0021_EAX Extended Feature Identification 2 */
+	/* Fn8000_000Ah SVM Features */
+        __cpuid_count(0x8000000A, 0, a, b, c, d);
+        printf("CPUID.(EAX=8000_000ah,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	if (d & (1 << 0))
+		printf("NP ");
+	if (d & (1 << 1))
+		printf("LbrVirt ");
+	if (d & (1 << 2))
+		printf("SVML ");
+	if (d & (1 << 3))
+		printf("NRIPS ");
+	if (d & (1 << 4))
+		printf("TscRateMsr ");
+	if (d & (1 << 5))
+		printf("VmcbClean ");
+	if (d & (1 << 6))
+		printf("FlushByAsid ");
+	if (d & (1 << 7))
+		printf("DecodeAssists ");
+	if (d & (1 << 8))
+		printf("PmcVirt ");
+	if (d & (1 << 10))
+		printf("PauseFilter ");
+	if (d & (1 << 12))
+		printf("PauseFilterThreshold ");
+	if (d & (1 << 13))
+		printf("AVIC ");
+	if (d & (1 << 15))
+		printf("VMSAVEvirt ");
+	if (d & (1 << 16))
+		printf("VGIF ");
+	if (d & (1 << 20))
+		printf("SpecCtrl ");
+	printf("\n");
+
+	/* Fn8000_001A_EAX Performance Optimization Identifiers */
+        __cpuid_count(0x8000001a, 0, a, b, c, d);
+        printf("CPUID.(EAX=8000_001ah,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	if (a & (1 << 0))
+		printf("FP128 ");
+	if (a & (1 << 1))
+		printf("MOVU ");
+	if (a & (1 << 2))
+		printf("FP256 ");
+	printf("\n");
+
+	/* Fn8000_0021 Extended Feature Identification 2 */
         __cpuid_count(0x80000021, 0, a, b, c, d);
         printf("CPUID.(EAX=8000_0021h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
 	if (a & (1 << 0))
@@ -223,5 +275,16 @@ int main(int argc, char *argv[]) {
 		printf("SRSO_USER_KERNEL_NO ");
 	if (a & (1 << 31))
 		printf("SRSO_MSR_FIX ");
+	printf("\n");
+
+	/* Fn8000_0022 Extended Performance Monitoring and Debug */
+        __cpuid_count(0x80000022, 0, a, b, c, d);
+        printf("CPUID.(EAX=8000_0022h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	if (a & (1 << 0))
+		printf("PerfMonV2 ");
+	if (a & (1 << 1))
+		printf("LbrStack ");
+	if (a & (1 << 2))
+		printf("LbrAndPmcFreeze ");
 	printf("\n");
 }
