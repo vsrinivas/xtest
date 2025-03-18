@@ -193,6 +193,8 @@ int main(int argc, char *argv[]) {
 	/* Fn8000_000Ah SVM Features */
         __cpuid_count(0x8000000A, 0, a, b, c, d);
         printf("CPUID.(EAX=8000_000ah,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	printf("SvmRev %x\n", a & 0x0f);
+	printf("NASID %x\n", b);
 	if (d & (1 << 0))
 		printf("NP ");
 	if (d & (1 << 1))
@@ -223,6 +225,24 @@ int main(int argc, char *argv[]) {
 		printf("VGIF ");
 	if (d & (1 << 20))
 		printf("SpecCtrl ");
+	if (d & (1 << 21))
+		printf("ROGPT ");
+	if (d & (1 << 23))
+		printf("HOST_MCE_OVERRIDE ");
+	if (d & (1 << 24))
+		printf("TlbiCtl ");
+	if (d & (1 << 25))
+		printf("VNMI ");
+	if (d & (1 << 26))
+		printf("IbsVirt ");
+	if (d & (1 << 27))
+		printf("ExtLvtAvicAccessChg ");
+	if (d & (1 << 28))
+		printf("NestedVirtVmcbAddrChk ");
+	if (d & (1 << 29))
+		printf("BusLockThreshold ");
+	if (d & (1 << 30))
+		printf("IdleHltIntercept ");
 	printf("\n");
 
 	/* Fn8000_001A_EAX Performance Optimization Identifiers */
