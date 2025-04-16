@@ -6,6 +6,7 @@ int main(int argc, char *argv[]) {
         unsigned long a, b, c, d;
 	unsigned char mfg[12 + 1];
 	unsigned long f, m, s;
+	int amd;
 
 	__cpuid_count(0x0, 0x0, a, b, c, d);
         printf("CPUID.(EAX=0h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
@@ -14,6 +15,8 @@ int main(int argc, char *argv[]) {
 	memcpy(&mfg[8], &c, 4);
 	mfg[12] = 0;
 	printf("%s\n", mfg);
+	if (strcmp(mfg, "AuthenticAMD") == 0)
+		amd = 1;
 
 	/* Brand String */
 	unsigned int brand[12];
@@ -191,6 +194,7 @@ int main(int argc, char *argv[]) {
         printf("\n");
 
 	/* Fn8000_000Ah SVM Features */
+	if (amd) {
         __cpuid_count(0x8000000A, 0, a, b, c, d);
         printf("CPUID.(EAX=8000_000ah,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
 	printf("SvmRev %x\n", a & 0x0f);
@@ -244,6 +248,7 @@ int main(int argc, char *argv[]) {
 	if (d & (1 << 30))
 		printf("IdleHltIntercept ");
 	printf("\n");
+	}
 
 	/* Fn8000_001A_EAX Performance Optimization Identifiers */
         __cpuid_count(0x8000001a, 0, a, b, c, d);
