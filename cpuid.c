@@ -6,7 +6,7 @@ int main(int argc, char *argv[]) {
         unsigned long a, b, c, d;
 	unsigned char mfg[12 + 1];
 	unsigned long f, m, s;
-	int amd;
+	int amd = 0;
 
 	__cpuid_count(0x0, 0x0, a, b, c, d);
         printf("CPUID.(EAX=0h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
@@ -45,6 +45,10 @@ int main(int argc, char *argv[]) {
 	if (c & (1 << 31))
 		printf("hypervisor ");
 	printf("\n");
+
+	/* Monitor/MWAIT Features */
+	__cpuid_count(0x5, 0x0, a, b, c, d);
+        printf("CPUID.(EAX=05h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
 
 	/* CPUID.(EAX=07h,ECX=0) */
 	__cpuid_count(0x7, 0x0, a, b, c, d);
@@ -160,6 +164,8 @@ int main(int argc, char *argv[]) {
 		printf("3DNowPrefetch ");
 	if (c & (1 << 10))
 		printf("IBS ");
+	if (c & (1 << 15))
+		printf("lwp ");
 	if (c & (1 << 16))
 		printf("fma4 ");
 	if (c & (1 << 17))
