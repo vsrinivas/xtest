@@ -135,6 +135,8 @@ int main(int argc, char *argv[]) {
 		printf("ipred_ctrl ");
 	if (d & (1 << 2))
 		printf("rrsba_ctrl ");
+	if (d & (1 << 3))
+		printf("ddpd_u ");
 	if (d & (1 << 4))
 		printf("bhi_ctrl ");
 	if (d & (1 << 5))
@@ -148,10 +150,22 @@ int main(int argc, char *argv[]) {
         printf("CPUID.(EAX=8000_0001h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
 	if (c & (1 << 2))
 		printf("SVM ");
+	if (c & (1 << 5))
+		printf("ABM ");
+	if (c & (1 << 6))
+		printf("SSE4A ");
+	if (c & (1 << 7))
+		printf("MisAlignSse ");
+	if (c & (1 << 8))
+		printf("3DNowPrefetch ");
 	if (c & (1 << 10))
 		printf("IBS ");
+	if (c & (1 << 16))
+		printf("fma4 ");
 	if (c & (1 << 17))
 		printf("tce ");
+	if (c & (1 << 21))
+		printf("tbm ");
 	if (c & (1 << 23))
 		printf("PerfCtrExtCore ");
 	if (c & (1 << 29))
@@ -268,16 +282,24 @@ int main(int argc, char *argv[]) {
 		printf("NoNestedDataBp ");
 	if (a & (1 << 2))
 		printf("LFenceAlwaysSerializing ");
+	if (a & (1 << 5))
+		printf("VERW_CLEAR ");
 	if (a & (1 << 6))
 		printf("NullSelectClearsBase ");
 	if (a & (1 << 7))
 		printf("UpperAddressIgnore ");
 	if (a & (1 << 8))
 		printf("AutomaticIBRS ");
+	if (a & (1 << 10))
+		printf("FastShortRepStosb ");
+	if (a & (1 << 11))
+		printf("FastShortRepeCmpsb ");
 	if (a & (1 << 13))
 		printf("PrefetchCtlMsr ");
 	if (a & (1 << 15))
 		printf("AMD_ERMSB ");
+	if (a & (1 << 16))
+		printf("OPCODE_0F017_RECLAIM ");
 	if (a & (1 << 17))
 		printf("CpuidUserDis ");
 	if (a & (1 << 18))
@@ -300,6 +322,10 @@ int main(int argc, char *argv[]) {
 		printf("SRSO_USER_KERNEL_NO ");
 	if (a & (1 << 31))
 		printf("SRSO_MSR_FIX ");
+	if (c & (1 << 1))
+		printf("TSA_SQ_NO ");
+	if (c & (1 << 2))
+		printf("TSA_L1_NO ");
 	printf("\n");
 
 	/* Fn8000_0022 Extended Performance Monitoring and Debug */
