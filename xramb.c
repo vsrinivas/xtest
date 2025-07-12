@@ -55,6 +55,6 @@ int main(int argc, char *argv[]) {
 			asm volatile("pause ; lfence" ::: "memory");
 		}
 		i++;
-		sleep(16);
+		sleep(160);
 	}
 }
