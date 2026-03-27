@@ -56,7 +56,7 @@ bdb_to_leveldb:
 	$(CXX) -o bdb_to_leveldb bdb_to_leveldb.cc -lleveldb -lsnappy -ldb
 
 pcpucheck: pcpucheck.o vcopy.o vcopy2.o zencpy.o zencpy2.o murmur3.o hashes.o
-	$(CXX) -o pcpucheck $^
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o pcpucheck $^
 
 # Parallel wordcount; RC 2018.
 pwc:	pwc.o

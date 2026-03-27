@@ -8,6 +8,7 @@
 #include <string.h>
 #include <thread>
 #include <unistd.h>
+#include <syslog.h>
 #include <vector>
 
 #ifdef __x86_64__
@@ -21,6 +22,12 @@
 #ifndef N // Default buffer size
 #define N (1 * GB)
 #endif
+
+#define CHECK_EQ(x, y)		\
+	if ((x) != (y))	{	\
+		syslog(LOG_PERROR | LOG_ERR, "%s:%d %s: %lx != %lx\n", __FILE__, __LINE__, __func__, (x), (y));	\
+		abort();	\
+	}
 
 #ifdef __x86_64__
 extern "C" void _zencpy(void *dst, void *src, size_t len);
@@ -137,12 +144,8 @@ static void check(int cpu) {
            "hash %lx mhash %x)...\n",
            rotor.load(), cpu, ((uintptr_t)g_args.dst) & (64 - 1), hash, mhash);
 #endif
-    if (g_args.hash != hash) {
-      abort();
-    }
-    if (g_args.mhash != mhash) {
-      abort();
-    }
+    CHECK_EQ(g_args.hash, hash);
+    CHECK_EQ(g_args.mhash, mhash);
 
     last = g_go;
     g_ack--;
@@ -241,9 +244,7 @@ int main(int argc, char *argv[]) {
 #endif
     // Back on the source CPU; quick check the src/dst buffers once again
     uint64_t hash = FNV1A_64((const char *)data_src.data(), data_src.size());
-    if (hash0 != hash) {
-      abort();
-    }
+    CHECK_EQ(hash0, hash);
     rotor++;
     if (rotor == cpus)
       rotor = 0;
@@ -253,8 +254,7 @@ int main(int argc, char *argv[]) {
 
     if (misalign == 0) {  // Once in a while, check the witness buffer.
       witness_hash_1 = FNV1A_64((const char *) witness.data(), witness.size());
-      if (witness_hash_0 != witness_hash_1)
-        abort();
+      CHECK_EQ(witness_hash_0, witness_hash_1);
     }
   }
 

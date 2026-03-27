@@ -45,7 +45,6 @@ main(int argc, char *argv[]) {
 		*x = 0;
 
 		fprintf(log, "%s, %f\n", buf, d);
-		fflush(log);
-		sleep(2);
+		sleep(10);
 	}
 }

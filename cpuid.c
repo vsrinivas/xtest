@@ -7,9 +7,11 @@ int main(int argc, char *argv[]) {
 	unsigned char mfg[12 + 1];
 	unsigned long f, m, s;
 	int amd = 0;
+	int highest = 0;
 
 	__cpuid_count(0x0, 0x0, a, b, c, d);
         printf("CPUID.(EAX=0h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	highest = a;
 	memcpy(&mfg[0], &b, 4);
 	memcpy(&mfg[4], &d, 4);
 	memcpy(&mfg[8], &c, 4);
@@ -32,6 +34,16 @@ int main(int argc, char *argv[]) {
 	s = (a & 0xf);
 	printf("Family %x Model %x Stepping %x\n", f, m, s);
 	printf("cpu_type=%x\n", a & 0xF0FF0);
+	if (d & (1 << 11))
+		printf("sep ");
+	if (d & (1 << 25))
+		printf("sse ");
+	if (d & (1 << 26))
+		printf("sse2 ");
+	if (c & (1 << 0))
+		printf("sse3 ");
+	if (c & (1 << 3))
+		printf("monitor ");
 	if (c & (1 << 9))
 		printf("ssse3 ");
 	if (c & (1 << 19))
@@ -45,6 +57,9 @@ int main(int argc, char *argv[]) {
 	if (c & (1 << 31))
 		printf("hypervisor ");
 	printf("\n");
+
+	if (highest < 5)
+		return 0;
 
 	/* Monitor/MWAIT Features */
 	__cpuid_count(0x5, 0x0, a, b, c, d);

@@ -31,7 +31,10 @@ void *worker(void *mp) {
         }
 
         for (i = 0;; i++) {
-                atomic_fetch_add(&s, 1);
+		if (me == 0)
+                	atomic_fetch_add(&s, 1);
+		else
+			atomic_load_explicit(&s, memory_order_acquire);
 
 		/* Only check the TSC occasionally */
 		if (((i & 0x1f) == 0) && (rdtsc() > upto)) {

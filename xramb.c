@@ -34,10 +34,8 @@ int main(int argc, char *argv[]) {
 		size = atol(argv[1]) * MB;
 
 	n = size / sizeof(unsigned long);
-	p = malloc(size);
-	memset(p, 0, size);
+	p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS | MAP_LOCKED, -1, 0);
 	
-	rc = mlock(p, size);
 	CHECK_EQ(rc, 0, "");
 
 	for (l = 0; l < n; l++) {
@@ -55,6 +53,15 @@ int main(int argc, char *argv[]) {
 			asm volatile("pause ; lfence" ::: "memory");
 		}
 		i++;
+
+		if (i % 100) {
+			/* Once in a while, page out */
+			rc = munlock(p, size);
+			CHECK_EQ(rc, 0, "munlock");
+			madvise(p, size, MADV_DONTNEED); 
+			rc = mlock(p, size);
+			CHECK_EQ(rc, 0, "mlock");
+		}
 		sleep(160);
 	}
 }
