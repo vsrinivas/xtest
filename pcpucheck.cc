@@ -74,7 +74,7 @@ void randomize(std::vector<uint8_t> &v, int ref) {
   size_t extra = v.size() - (qwords * sizeof(uint64_t));
   size_t extraoff = qwords * sizeof(uint64_t);
 
-  for (size_t i = 0; i < qwords; i += sizeof(uint64_t)) {
+  for (size_t i = 0; i < qwords * sizeof(uint64_t); i += sizeof(uint64_t)) {
     for (int j = 0; j < sizeof(uint64_t); j++) {
       val[j] = 0xAA + ref + ((i + j) & 0xff);
     }
@@ -117,7 +117,7 @@ static void pickmemcpy(void *dst, void *src, size_t size) {
       memcpy(dst, src, size);
     }
 #else
-    memcpy(dst, data_src.data(), data_src.size());
+    memcpy(dst, src, size);
 #endif
 }
 
