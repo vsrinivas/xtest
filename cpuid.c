@@ -21,11 +21,11 @@ int main(int argc, char *argv[]) {
 		amd = 1;
 
 	/* Brand String */
-	unsigned int brand[12];
+	unsigned int brand[12] = {};
 	__get_cpuid(0x80000002, brand+0x0, brand+0x1, brand+0x2, brand+0x3);
 	__get_cpuid(0x80000003, brand+0x4, brand+0x5, brand+0x6, brand+0x7);
 	__get_cpuid(0x80000004, brand+0x8, brand+0x9, brand+0xa, brand+0xb);
-	printf("%s\n", brand);
+	printf("%s\n", (char *) brand);
 
 	__cpuid_count(0x1, 0x0, a, b, c, d);
         printf("CPUID.(EAX=01h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
@@ -44,10 +44,26 @@ int main(int argc, char *argv[]) {
 		printf("sse3 ");
 	if (c & (1 << 3))
 		printf("monitor ");
+	if (d & (1 << 27))
+		printf("ss ");
+	if (c & (1 << 0))
+		printf("sse3 ");
+	if (c & (1 << 1))
+		printf("pclmulqdq ");
 	if (c & (1 << 9))
 		printf("ssse3 ");
+	if (c & (1 << 13))
+		printf("cx16 ");
 	if (c & (1 << 19))
 		printf("sse4.1 ");
+	if (c & (1 << 20))
+		printf("sse4.2 ");
+	if (c & (1 << 22))
+		printf("movbe ");
+	if (c & (1 << 23))
+		printf("popcnt ");
+	if (c & (1 << 25))
+		printf("aesni ");
 	if (c & (1 << 26))
 		printf("xsave ");
 	if (c & (1 << 27))
@@ -164,6 +180,10 @@ int main(int argc, char *argv[]) {
 		printf("monitor_mitg_no ");
         printf("\n");
 
+	__cpuid_count(0x8000000, 0, a, b, c, d);
+        printf("CPUID.(EAX=8000_0000h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
+	highest = a;
+
 	/* Fn8000_0001 Extended Processor Info and Feature Bits */
         __cpuid_count(0x80000001, 0, a, b, c, d);
         printf("CPUID.(EAX=8000_0001h,ECX=0) %lx %lx %lx %lx\n", a, b, c, d);
@@ -192,6 +212,9 @@ int main(int argc, char *argv[]) {
 	if (c & (1 << 29))
 		printf("monitorx ");
         printf("\n");
+
+	if (highest < 8)
+		return 0;
 
 	/* Fn8000_0008_EBX Extended Feature Identifiers */
         __cpuid_count(0x80000008, 0, a, b, c, d);

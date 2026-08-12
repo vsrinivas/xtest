@@ -5,7 +5,7 @@
 #include <string.h>
 
 // wait until loadavg < 1.5 . if opt arg is passed in, max minutes to wait.
-main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
 	char buf[180];
 	char *ind;
 	FILE *f;
