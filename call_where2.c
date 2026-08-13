@@ -22,6 +22,13 @@ void shuffle(void (**array)(long long *), size_t n) {
 
 void (*fp[N])(long long *);
 
+static void xcall(long long *ctr, int i) {
+	fp[i](ctr);
+	i++;
+	if (i < N)
+		xcall(ctr, i);
+}
+
 int main(int argc, char *argv[]) {
     void (*fp2[NUM_TARGETS])(long long *);
     int i;
@@ -45,9 +52,7 @@ int main(int argc, char *argv[]) {
     for (j = 0; j < 100; j++) {
         ctr2 = 0;
         shuffle(fp, N);
-        for (i = 0; i < N; i++) {
-            fp[i](&ctr2);
-        }
+	xcall(&ctr2, 0);
         assert(ctr1 == ctr2);
     }
 
