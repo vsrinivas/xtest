@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <assert.h>
+#include <stdint.h>
 
-static int depth;
+static uint64_t depth;
 
-void ras_calls(int *, int);
-void ras_calls2(int *, int, void * /*ret_addr*/);
+void ras_calls(uint64_t *, int);
+void ras_calls2(uint64_t *, int, void * /*ret_addr*/);
 
 int main(int argc, char *argv[]) {
 	int calls = 50000;
