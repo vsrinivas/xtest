@@ -1,56 +1,90 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <time.h>
+#include <stdint.h>
+#include <string.h>
 
 #define N (65536)
 #define NUM_TARGETS 1536
 #define TARGET_ALIGN 128
+#define ITERS 100
 
-extern void add_start();
+extern char add_start[];
 
-void shuffle(void (**array)(long long *), size_t n) {
+typedef void (*target_fn)(unsigned long long *);
+
+static uint32_t xrand = 0xc0ffee;
+static uint32_t xorshift32(uint32_t *state) {
+	uint32_t x = *state;
+	x = x ^ (x << 13);
+	x = x ^ (x >> 17);
+	x = x ^ (x << 5);
+	*state = x;
+	return x;
+}
+
+void shuffle(target_fn *array, size_t n) {
     if (n > 1) {
         for (size_t i = 0; i < n - 1; i++) {
-            size_t j = i + rand() % (n - i);
-            void (*t)(long long *) = array[j];
+            size_t j = i + xorshift32(&xrand) % (n - i);
+            target_fn t = array[j];
             array[j] = array[i];
             array[i] = t;
         }
     }
 }
 
-void (*fp[N])(long long *);
+void CHECK_EQ(unsigned long long x, unsigned long long y) {
+    if (x != y) {
+        fprintf(stderr, "%llx != %llx\n", x, y);
+        abort();
+    }
+}
+
+static unsigned long long expected(const target_fn *array, size_t n) {
+    unsigned long long v = 0;
+
+    for (size_t i = 0; i < n; i++)
+        v = v * 3 + (unsigned long long)(uintptr_t)array[i];
+
+    return v;
+}
+
+target_fn fp[N];
 
 int main(int argc, char *argv[]) {
-    void (*fp2[NUM_TARGETS])(long long *);
+    target_fn fp2[NUM_TARGETS];
+    unsigned long long ctr, want;
+    int iters = ITERS;
     int i;
     int j;
-    long long ctr1 = 0, ctr2 = 0;
-    
-    srand(time(NULL));
+
+    xrand = 0xc0ffee;
 
     for (i = 0; i < NUM_TARGETS; i++) {
-        fp2[i] = (void (*)(long long *))((char *)add_start + i * TARGET_ALIGN);
+        fp2[i] = (target_fn)(add_start + i * TARGET_ALIGN);
     }
 
     for (i = 0; i < N; i++) {
         fp[i] = fp2[i % NUM_TARGETS];
     }
 
+    ctr = 0;
     for (i = 0; i < N; i++) {
-        fp[i](&ctr1);
+        fp[i](&ctr);
     }
+    want = expected(fp, N);
+    CHECK_EQ(ctr, want);
 
-    for (j = 0; j < 100; j++) {
-        ctr2 = 0;
+    for (j = 0; j < iters; j++) {
         shuffle(fp, N);
+        want = expected(fp, N);
+
+        ctr = 0;
         for (i = 0; i < N; i++) {
-            fp[i](&ctr2);
+            fp[i](&ctr);
         }
-        assert(ctr1 == ctr2);
+        CHECK_EQ(ctr, want);
     }
 
-    printf("Done! ctr1: %lld, ctr2: %lld\n", ctr1, ctr2);
     return 0;
 }
