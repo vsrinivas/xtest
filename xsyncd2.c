@@ -1,5 +1,3 @@
-// python -m http.server 8000 --bind 127.0.0.1
-
 #include <time.h>
 #include <stdio.h>
 #include <strings.h>
@@ -7,6 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -32,38 +31,13 @@ void uptime(char *out, int n) {
 
 #define N 32
 time_t tms[N];
-main(argc, argv)
-	char *argv[];
+int main(int argc, char *argv[])
 {
 	char *metricsdir;
 	char buf[80];
 	int metricsfile;
 	int rc;
 	int port;
-
-	port = (argc == 1) ? 4901 : atoi(argv[1]);
-
-	sprintf(buf, "/tmp/%d", getpid());
-	mkdir(buf, 0700);
-
-	sprintf(buf, "/tmp/%d/XXXXXX", getpid());
-	mkdtemp(buf);
-	metricsdir = strdup(buf);
-
-	bzero(buf, sizeof(buf));
-	sprintf(buf, "%s/metrics", metricsdir);
-	metricsfile = open(buf, O_CREAT | O_RDWR, 0700);
-	if (metricsfile == -1)
-		return -1;
-
-	rc = fork();
-	if (rc == 0) {
-		chdir(metricsdir);
-		bzero(buf, sizeof(buf));
-		sprintf(buf, "python3 -m http.server %d --bind 127.0.0.1\n", port);
-		//system(buf);
-		return 0;
-	}
 
 	int i = 0, n;
         time_t a, b;
