@@ -1,44 +1,25 @@
-.global add1
-add1:
-	addq $1, (%rdi)
-	ret
- 
-.global add2
-add2:
-	addq $2, (%rdi)
-	ret
+/*
+ * The recurrence is order-sensitive on purpose: a plain sum commutes, and so
+ * is blind to "right targets, wrong order".
+ */
 
-.global add3
-add3:
-	addq $3, (%rdi)
-	ret
+.global add_start
+.type add_start,@function
+.text
+.balign 128
+add_start:
+    .rept 1536
 
-.global add4
-add4:
-	addq $4, (%rdi)
-	ret
+    .p2align 7, 0xcc
+    leaq .(%rip), %rax          /* rax = address of this block */
+    movq (%rdi), %rdx
+    leaq (%rdx,%rdx,2), %rdx    /* rdx *= 3 */
+    addq %rax, %rdx
+    movq %rdx, (%rdi)
+    ret
 
-.global add5
-add5:
-	addq $5, (%rdi)
-	ret
+    ud2
+    .endr
+.size add_start, . - add_start
 
-.global add6
-add6:
-	addq $6, (%rdi)
-	ret
-
-.global add7
-add7:
-	addq $7, (%rdi)
-	ret
-
-.global add8
-add8:
-	addq $8, (%rdi)
-	ret
-
-.global add9
-add9:
-	addq $9, (%rdi)
-	ret
+.section .note.GNU-stack,"",@progbits
