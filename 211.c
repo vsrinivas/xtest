@@ -7,8 +7,9 @@ static unsigned long sqd(int n)
 	unsigned long s = 0;
 	int i;
 	unsigned long p;
-	
-	for (i = 1; i <= sqrt(n); i++) {
+	unsigned long n0 = sqrt(n);
+
+	for (i = 1; i <= n0; i++) {
 		if ((n % i) == 0) {
 			s += (i * i);
 			p = n / i;
@@ -17,6 +18,32 @@ static unsigned long sqd(int n)
 		}
 	}
 	return s;
+}
+
+static int jacobi(unsigned long v, unsigned long n) {
+	int r;
+
+	r = 1;
+	v = v % n;
+
+	while (v) {
+		while ((v % 2) == 0) {
+			v = v / 2;
+			int n_mod_8 = n % 8;
+			if ((n_mod_8 == 3) || (n_mod_8 == 5))
+			       r = -r;
+		}
+
+		if (((v % 4) == 3) && ((n % 4) == 3))
+			r = -r;
+
+		unsigned long v_old = v;
+		v = n % v;
+		n = v_old;
+	}
+
+	if (n == 1) return r;
+	return 0;
 }
 
 static int issquare(unsigned long v) {
@@ -33,6 +60,11 @@ static int issquare(unsigned long v) {
 		if ((v % 8) != 1)
 			return 0;
 	}
+
+	if (jacobi(v, 11) == -1)
+		return 0;
+	if (jacobi(v, 17) == -1)
+		return 0;
 
 	v0 = sqrt(v);
 	return (v == (v0 * v0));	
