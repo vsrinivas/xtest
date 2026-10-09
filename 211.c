@@ -6,10 +6,15 @@ static unsigned long sqd(int n)
 	/* sum squares of all divisors */
 	unsigned long s = 0;
 	int i;
-
-	for (i = 1; i <= n; i++) {
-		if ((n % i) == 0)
+	unsigned long p;
+	
+	for (i = 1; i <= sqrt(n); i++) {
+		if ((n % i) == 0) {
 			s += (i * i);
+			p = n / i;
+			if (p != i)
+				s += (p * p);
+		}
 	}
 	return s;
 }
@@ -52,7 +57,7 @@ main(argc, argv)
 			s += n;
 		}
 
-		if ((omp_get_thread_num() == 0) && ((n % 10000) == 0)) {
+		if ((omp_get_thread_num() == 0) && ((n % 100000) == 0)) {
 			now = time(NULL);
 			p = ctime(&now);
 			q = index(p, '\n');
