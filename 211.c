@@ -1,7 +1,7 @@
 #include <time.h>
 #include <math.h>
 
-unsigned long sqd(int n)
+static unsigned long sqd(int n)
 {
 	/* sum squares of all divisors */
 	unsigned long s = 0;
@@ -14,7 +14,7 @@ unsigned long sqd(int n)
 	return s;
 }
 
-int issquare(unsigned long v) {
+static int issquare(unsigned long v) {
 	int odd = v & 0x1;
 	unsigned long v0;
 
@@ -45,15 +45,14 @@ main(argc, argv)
 	printf("s2(10) = %ld\n", sqd(10));
 
 	/* Find the sum of all 0 < n < 64 000 000 s.t. sqd(n) is a perfect square */
-#pragma omp parallel for
+#pragma omp parallel for reduction(+: s)
 	for (n = 1; n < 64000000; n++) {
 		v = sqd(n);
 		if (issquare(v)) {
-#pragma omp atomic
 			s += n;
 		}
 
-		if ((n % 10000) == 0) {
+		if ((omp_get_thread_num() == 0) && ((n % 10000) == 0)) {
 			now = time(NULL);
 			p = ctime(&now);
 			q = index(p, '\n');
@@ -61,4 +60,6 @@ main(argc, argv)
 			printf("%s %d\n", p, n);
 		}
 	}
+
+	printf("%ld\n", s);
 }
