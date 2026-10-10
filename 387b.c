@@ -108,6 +108,7 @@ int isprime(unsigned long n) {
 			return 0;
 	}
 #endif
+#if 0
     // These bases are sufficient to be 100% deterministic for all 64-bit ints
     static const unsigned long bases[] = {2, 3, 5, 7, 11, 13, 17, 19, 23};
 
@@ -121,6 +122,7 @@ int isprime(unsigned long n) {
         if (n == bases[i]) return 1;
         if (!miller_rabin_test(n, bases[i], d, s)) return 0;
     }
+#endif
 
     return 1;
 }
@@ -180,7 +182,7 @@ main(argc, argv)
 	unsigned long limit, llimit;
 	unsigned long j = 0;
 
-	invIdxLimit = 4096ull * 1024 * 1024;
+	invIdxLimit = 8ull * 1024 * 1024;
 	invIdxLimit1 = sqrt(invIdxLimit);
 	invIdx = calloc(bits(invIdxLimit), sizeof(char));
 	printf("sieve... ");
@@ -203,13 +205,13 @@ main(argc, argv)
 	limit = pow(10, 13);
 #endif
 	llimit = 11;
-	limit = pow(10, 9);
+	limit = pow(10, 4);
 
 	start = time(NULL);
 //#pragma omp parallel for reduction(+: sum)
 	for (i = llimit; i < limit; i += 2) {
 		if ((omp_get_thread_num() == 0)) {
-		       if ((j % 100000000) == 0) {
+		       if ((j % 1000000000) == 0) {
 			now = time(NULL);
 			char *p = ctime(&now);
 			char *q = index(p, '\n');
