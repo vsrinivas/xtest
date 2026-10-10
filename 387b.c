@@ -75,7 +75,7 @@ int miller_rabin_test(unsigned long long n, unsigned long long a, unsigned long 
 }
 
 static int isprimefast(unsigned long n) {
-        int quickcheck[] = {2, 3, 5, 7, 11, 13};
+        int quickcheck[] = {2, 3, 5, 7, 11};
         int i;
 
 	if ((n == 0) || (n == 1))
@@ -180,7 +180,7 @@ main(argc, argv)
 	unsigned long limit, llimit;
 	unsigned long j = 0;
 
-	invIdxLimit = 8ull * 1024 * 1024 * 1024;
+	invIdxLimit = 16ull * 1024 * 1024 * 1024;
 	invIdxLimit1 = sqrt(invIdxLimit);
 	invIdx = calloc(bits(invIdxLimit), sizeof(char));
 	printf("sieve... ");
@@ -202,8 +202,8 @@ main(argc, argv)
 	llimit = pow(10, 12); sum = 2897368636255ul;
 	limit = pow(10, 13);
 #endif
-	llimit = 11;
-	limit = pow(10, 10);
+	llimit = pow(10, 12); sum = 2897368636255ul;
+	limit = pow(10, 13);
 
 	start = time(NULL);
 	for (i = llimit; i < limit; i += 2) {

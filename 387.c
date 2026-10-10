@@ -107,7 +107,7 @@ int isprime(unsigned long n) {
 //	if (modexp(2, n-1, n) != 1) return 0;
 
 	misses++;
-#if 0 
+#if 0  // TRIAL DIVISION
 	for (unsigned long i = 3; i * i <= n; i+= 2) {
 		if ((i < invIdxLimit) && (bit(invIdx, i) == 0))
 			continue;
@@ -123,7 +123,7 @@ int isprime(unsigned long n) {
         if (!miller_rabin_test(n, bases[i])) return 0;
     }
 
-	return 1;
+    return 1;
 }
 
 __attribute__((pure))
@@ -160,7 +160,7 @@ main(argc, argv)
 	time_t start, end, now;
 	unsigned long j = 0;
 
-	invIdxLimit = 12222225400;
+	invIdxLimit = 16ull * 1024 * 1024;
 	invIdxLimit1 = sqrt(invIdxLimit);
 	invIdx = calloc(bits(invIdxLimit), sizeof(char));
 	printf("sieve... ");
