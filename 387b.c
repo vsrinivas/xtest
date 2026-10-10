@@ -75,7 +75,7 @@ int miller_rabin_test(unsigned long long n, unsigned long long a, unsigned long 
 }
 
 static int isprimefast(unsigned long n) {
-        int quickcheck[] = {2, 3, 5, 7, 11, 13, 17};
+        int quickcheck[] = {2, 3, 5, 7, 11, 13};
         int i;
 
 	if ((n == 0) || (n == 1))
