@@ -25,9 +25,9 @@ void randomize(std::vector<uint8_t> &v, int ref) {
   size_t extra = v.size() - (qwords * sizeof(uint64_t));
   size_t extraoff = qwords * sizeof(uint64_t);
 
-  for (size_t i = 0; i < qwords; i += sizeof(uint64_t)) {
+  for (size_t i = 0; i < extraoff; i += sizeof(uint64_t)) {
     for (int j = 0; j < sizeof(uint64_t); j++) {
-      val[i] = 0xAA + ref + ((i + j) & 0xff);
+      val[j] = 0xAA + ref + ((i + j) & 0xff);
     }
     memcpy(v.data() + i, val, sizeof(val));
   }
@@ -41,7 +41,6 @@ int main(int argc, char *argv[]) {
   uint128 city_hash0;
   uint32_t loops = 0;
   size_t size;
-  int i;
   int misalign = 0;
   int MAX_MISALIGN = 64;
   int max_loops;
